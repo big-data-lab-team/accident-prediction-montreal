@@ -10,6 +10,7 @@ lxml = "*"
 scipy = "*"
 beautifulsoup4 = "*"
 dask = "*"
+pandas = "*"
 
 [requires]
 python_version = "3.7"
