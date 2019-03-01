@@ -2,9 +2,11 @@ from urllib.request import urlopen, urlretrieve
 from urllib.parse import quote
 from urllib.error import URLError, HTTPError
 from os.path import isfile
-from os import mkdir
+from os import mkdir, listdir
 from bs4 import BeautifulSoup
 import re
+from zipfile import ZipFile
+from io import StringIO
 
 def fetch_road_network():
     if isfile('data/road-network.lock'):
@@ -26,4 +28,12 @@ def fetch_road_network():
     open('data/road-network.lock', 'wb').close()
     print('Fetching road network done')
 
+def get_road_network():
+    return map(
+            lambda f: StringIO(ZipFile(f'data/road-network/{file}', 'r').read('doc.kml')), 
+            listdir('data/road-network')
+            )
+
+
 fetch_road_network()
+extract_road_network()
