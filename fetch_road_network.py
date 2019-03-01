@@ -30,5 +30,5 @@ def fetch_road_network():
     print('Fetching road network done')
 
 def get_road_network():
-    return db.from_sequence(listdir('data/road-network/'))         
+    return db.from_sequence(listdir('data/road-network/')) \
         .map(lambda f: BytesIO(ZipFile(f'data/road-network/{f}', 'r').read('doc.kml')))
