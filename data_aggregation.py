@@ -32,18 +32,14 @@ def get_kml_content(soup):
                     i+=1
     return df
 
-def kml_extract_dataframe(xml_file_path, output_csv_file_path):
+def kml_extract_dataframe(xml_file):
     ''' Function to extract the content of a kml input file and to store it into a csv output file.
     Args:
         xml_file_path: input kml file (kml is an xml file)
-        output_csv_file_path: output csv file path
     '''
-    if not xml_file_path.endswith('.kml') or not os.path.isfile(xml_file_path) or not output_csv_file_path.endswith('.csv'):
-        print('Bad file path.')
-        return
 
     try:
-        with open(xml_file_path) as xml_file:
+        with open(xml_file) as xml_file:
             soup = BeautifulSoup(xml_file, "lxml-xml")
     except:
         print('[Error] Unable to open input file {0}'.format(xml_file_path))
@@ -54,13 +50,6 @@ def kml_extract_dataframe(xml_file_path, output_csv_file_path):
     except:
         print('[Error] An error occured while extracting the content of the input file into a dataframe.')
         raise
-
-    try:
-        df.to_csv(output_csv_file_path, sep=',')
-    except:
-        print('[Error] A problem occured while attempting to save output dataframe in csv file.')
-        raise
-
-    print('[Success]')
+    return df
 
 kml_extract_dataframe(xml_file_path, output_csv_file_path)
