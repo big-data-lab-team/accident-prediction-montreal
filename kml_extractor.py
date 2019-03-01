@@ -17,10 +17,8 @@ def get_kml_content(soup):
             center = placemark.MultiGeometry.Point.coordinates.text.split(',')
             coordinates_list = placemark.MultiGeometry.LineString.coordinates.text.split(' ')
 
-            coords_list = list()
-
-            for coords in coordinates_list:
-                coords.split(',')
+            for coord in coordinates_list:
+                coords = coord.split(',')
                 if len(coords) > 1:
                     rows.append({'street_name':street_name,
                         'street_type':street_type,
