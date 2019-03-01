@@ -9,6 +9,7 @@ verify_ssl = true
 lxml = "*"
 scipy = "*"
 beautifulsoup4 = "*"
+dask = "*"
 
 [requires]
 python_version = "3.7"
