@@ -6,7 +6,8 @@ from os import mkdir, listdir
 from bs4 import BeautifulSoup
 import re
 from zipfile import ZipFile
-from io import StringIO
+from io import BytesIO
+from dask import bag as db
 
 def fetch_road_network():
     if isfile('data/road-network.lock'):
@@ -29,11 +30,5 @@ def fetch_road_network():
     print('Fetching road network done')
 
 def get_road_network():
-    return map(
-            lambda f: StringIO(ZipFile(f'data/road-network/{file}', 'r').read('doc.kml')), 
-            listdir('data/road-network')
-            )
-
-
-fetch_road_network()
-extract_road_network()
+    return db.from_sequence(listdir('data/road-network/'))         
+        .map(lambda f: BytesIO(ZipFile(f'data/road-network/{f}', 'r').read('doc.kml')))
