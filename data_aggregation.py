@@ -39,8 +39,7 @@ def kml_extract_dataframe(xml_file):
     '''
 
     try:
-        with open(xml_file) as xml_file:
-            soup = BeautifulSoup(xml_file, "lxml-xml")
+        soup = BeautifulSoup(xml_file, "lxml-xml")
     except:
         print('[Error] Unable to open input file {0}'.format(xml_file_path))
         raise
@@ -52,4 +51,5 @@ def kml_extract_dataframe(xml_file):
         raise
     return df
 
-kml_extract_dataframe(xml_file_path, output_csv_file_path)
+with open(xml_file_path) as xml_file:
+    df = kml_extract_dataframe(xml_file)
