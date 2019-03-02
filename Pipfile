@@ -12,7 +12,7 @@ beautifulsoup4 = "*"
 dask = {extras = ["bag"],version = "*"}
 pandas = "*"
 pyarrow = "*"
-jupyter = "*"
+ipykernel = "*"
 
 [requires]
 python_version = "3.7"
