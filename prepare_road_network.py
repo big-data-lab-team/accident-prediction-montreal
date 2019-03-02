@@ -1,5 +1,8 @@
 from bs4 import BeautifulSoup
 import pandas as pd
+from fetch_road_network import get_road_network
+import dask.dataframe as df
+from os.path import isdir
 
 def get_kml_content(soup):
     ''' Function to extract kml file content and store relevant information into a pandas dataframe.
@@ -20,14 +23,14 @@ def get_kml_content(soup):
             for coord in coordinates_list:
                 coords = coord.split(',')
                 if len(coords) > 1:
-                    rows.append({'street_name':street_name,
-                        'street_type':street_type,
-                        'center_long':center[0],
-                        'center_lat':center[1],
-                        'center_dummy':center[2],
-                        'coord_long':coords[0],
-                        'coord_lat':coords[1],
-                        'coord_dummy':coords[2]})
+                    rows.append({
+                            0: street_name,
+                            1: street_type,
+                            2: float(center[0]),
+                            3: float(center[1]),
+                            4: float(coords[0]),
+                            5: float(coords[1])
+                        })
     return rows
 
 def kml_extract_dataframe(xml_file):
@@ -48,3 +51,25 @@ def kml_extract_dataframe(xml_file):
         print('[Error] An error occured while extracting the content of the input file into a dataframe.')
         raise
     return rows
+
+def extract_road_network_dataframe():
+    if isdir('data/road-network.parquet'):
+        print('Skip extraction of road network dataframe: already done, reading from file')
+        return df.read_parquet('data/road-network.parquet')
+    print('Extracting road network dataframe...')
+    road_network_dataframe = (get_road_network()
+            .map(kml_extract_dataframe)
+            .flatten()
+            .to_dataframe()
+            .rename(columns={
+                    0:'street_name',
+                    1: 'street_type',
+                    2: 'center_long',
+                    3: 'center_lat',
+                    4: 'coord_long',
+                    5: 'coord_lat'
+                })
+            .persist())
+    df.to_parquet(road_network_dataframe, 'data/road-network.parquet')
+    print('Extracting road network dataframe done')
+    return df

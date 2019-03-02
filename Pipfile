@@ -9,8 +9,10 @@ verify_ssl = true
 lxml = "*"
 scipy = "*"
 beautifulsoup4 = "*"
-dask = "*"
+dask = {extras = ["bag"],version = "*"}
 pandas = "*"
+pyarrow = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.7"
