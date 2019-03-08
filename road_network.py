@@ -96,7 +96,7 @@ def kml_extract_dataframe(xml_file):
     try:
         soup = BeautifulSoup(xml_file, "lxml-xml")
     except:
-        print('[Error] Unable to open input file {0}'.format(xml_file_path))
+        print('[Error] Unable to open input file')
         raise
 
     try:
