@@ -13,6 +13,7 @@ dask = {extras = ["bag"],version = "*"}
 pandas = "*"
 pyarrow = "*"
 ipykernel = "*"
+pyspark = "*"
 
 [requires]
 python_version = "3.7"

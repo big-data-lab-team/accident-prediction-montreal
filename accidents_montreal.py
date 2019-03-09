@@ -5,8 +5,11 @@ from zipfile import ZipFile
 from io import BytesIO
 import dask.dataframe as dd
 import pandas as pd
+import os
 
 def fetch_accidents_montreal():
+    if not os.path.isdir('data'):
+        os.mkdir('data')
     if isfile('data/accidents-montreal.lock'):
         print('Skip fetching montreal accidents dataset: already downloaded')
         return
@@ -19,7 +22,7 @@ def fetch_accidents_montreal():
         print('Fetching montreal accidents dataset: done')
         open('data/accidents-montreal.lock', 'w').close()
     except (URLError, HTTPError):
-        print('Unable to reach montreal accidents dataset server')
+        print('Unable to find montreal accidents dataset.')
 
 def get_accidents_montreal():
     return BytesIO(ZipFile('data/accidents-montreal.zip', 'r').read('Accidents_2012_2017/Accidents_2012_2017.csv'))
