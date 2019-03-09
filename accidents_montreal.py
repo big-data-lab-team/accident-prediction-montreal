@@ -3,9 +3,13 @@ from urllib.error import URLError, HTTPError
 from os.path import isfile
 from zipfile import ZipFile
 from io import BytesIO
-import dask.dataframe as dd
+import pyspark
 import pandas as pd
 import os
+from pyspark.sql.types import StringType, BooleanType, IntegerType, FloatType, StructType, StructField, DataType
+
+sc = pyspark.SparkContext("local", "First App")
+sqlContext = pyspark.sql.SQLContext(sc)
 
 def fetch_accidents_montreal():
     if not os.path.isdir('data'):
@@ -24,9 +28,26 @@ def fetch_accidents_montreal():
     except (URLError, HTTPError):
         print('Unable to find montreal accidents dataset.')
 
-def get_accidents_montreal():
-    return BytesIO(ZipFile('data/accidents-montreal.zip', 'r').read('Accidents_2012_2017/Accidents_2012_2017.csv'))
-
 def extract_accidents_montreal_dataframe():
-    file = get_accidents_montreal()
-    return dd.from_pandas(pd.read_csv(file), npartitions=8)
+    if os.path.isdir('data/accidents-montreal.parquet'):
+        print('Skip extraction of accidents montreal dataframe: already done, reading from file')
+        try:
+            return sqlContext.read.parquet('data/accidents-montreal.parquet')
+        except:
+            pass
+
+    file = BytesIO(ZipFile('data/accidents-montreal.zip', 'r').read('Accidents_2012_2017/Accidents_2012_2017.csv'))
+    pddf=pd.read_csv(file)
+    cols=pddf.columns.tolist()
+    types=pddf.dtypes \
+        .replace('object',StringType()) \
+        .replace('int64',IntegerType()) \
+        .replace('float64',FloatType()) \
+        .replace('string',StringType()) \
+        .tolist()
+
+    fields = list(map(lambda u: StructField(u[0], u[1], True), zip(cols,types)))
+    sch = StructType(fields)
+    df = sqlContext.createDataFrame(data=pddf, schema=sch).repartition(200)
+    df.write.parquet('data/accidents-montreal.parquet')
+    return df

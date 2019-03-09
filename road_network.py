@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 
 sc = pyspark.SparkContext("local", "First App")
-ss = pyspark.sql.SparkSession(sc)
+spark = pyspark.sql.SparkSession(sc)
 
 def fetch_road_network():
     if not os.path.isdir('data'):
