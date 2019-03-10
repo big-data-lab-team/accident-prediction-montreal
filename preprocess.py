@@ -13,17 +13,28 @@ road.filter('index' == candidate)[['index', 'coord_long', 'coord_lat']] \
 .min()"""
 
 def euclidian_dist(center, location):
+    ''' Euclidian distance between two 2D points.
+    '''
     if not len(center)==len(location)==2:
         raise ValueError('Bad argument(s)')
     return math.sqrt((center[0]-location[0])**2 + (center[1]-location[1])**2)
 
 def get_nearest_neighbours(centers_rdd, location, k):
+    ''' Get the k nearest centers from a given location (longitude,latitude)
+    '''
     return centers_rdd \
         .map(lambda row : Row(center_long=row[0], center_lat=row[1], id=row[2], dist=euclidian_dist((row[0], row[1]), location))) \
         .sortBy(lambda x: x.dist) \
         .take(k)
 
 def get_most_probable_section(centers_rdd, center_neighbours, location):
+    ''' Return the nearest road segment from a given location (long,lat) given the center of this segment.
+    Procedure:
+        Given a list of segment's centers that could be the nearest from location 'location':
+            for each segment's center:
+                retrieve its coordinates and return the nearest coordinate from location 'location'
+        Now that we got the nearest coordinate of all most probable segments, find the nearest coordinate and return the corresponding segment.
+    '''
     bests=list()
     for cn in center_neighbours :
         bests.append(centers_rdd \
@@ -38,6 +49,7 @@ def get_most_probable_section(centers_rdd, center_neighbours, location):
             .sortBy(lambda x: x.dist) \
             .take(1)
 
+#init spark
 sc = pyspark.SparkContext("local", "First App")
 spark = pyspark.sql.SparkSession \
     .builder \
@@ -46,8 +58,11 @@ spark = pyspark.sql.SparkSession \
     .getOrCreate()
 sqlContext = pyspark.sql.SQLContext(sc)
 
+#retrieve datasets
 accidents_df=extract_accidents_montreal_dataframe(sqlContext)
 road_df=extract_road_segments_DF(sc, sqlContext)
+
+#get centers of road segments from road_df
 centers = road_df.select("*") \
     .withColumn("id", monotonically_increasing_id()) \
     .select(['center_long', 'center_lat', 'id']) \
@@ -56,5 +71,6 @@ centers = road_df.select("*") \
 location = (-73.861616, 45.45505)
 k = 10
 centers_rdd=centers.rdd
+
 center_neighbours = get_nearest_neighbours(centers_rdd, location, k)
 val = get_most_probable_section(centers_rdd, center_neighbours, location)
