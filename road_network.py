@@ -8,9 +8,6 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import pandas as pd
 
-sc = pyspark.SparkContext("local", "First App")
-spark = pyspark.sql.SparkSession(sc)
-
 def fetch_road_network():
     if not os.path.isdir('data'):
         os.mkdir('data')
@@ -81,15 +78,14 @@ def kml_extract_RDD(xml_file):
         raise ValueError('An error occured while extracting the content of the input file into a dataframe.')
     return rows
 
-def get_road_segments_RDD():
+def get_road_segments_RDD(sc):
     return sc.parallelize(os.listdir('data/road-network/')) \
         .map(lambda f: BytesIO(ZipFile(f'data/road-network/{f}', 'r').read('doc.kml')))
 
-def extract_road_segments_DF():
+def extract_road_segments_DF(sc, sqlContext):
     if os.path.isdir('data/road-network.parquet'):
         print('Skip extraction of road network dataframe: already done, reading from file')
         try:
-            sqlContext = pyspark.sql.SQLContext(sc)
             return sqlContext.read.parquet('data/road-network.parquet')
         except:
             pass

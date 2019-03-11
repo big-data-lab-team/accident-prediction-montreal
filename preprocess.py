@@ -5,13 +5,6 @@ import pyspark
 from pyspark.sql.functions import monotonically_increasing_id
 from pyspark.sql import Row
 
-"""
-def get_best_candidate(location, road, candidate_list):
-for candidate in candidate_list:
-road.filter('index' == candidate)[['index', 'coord_long', 'coord_lat']] \
-.apply(lambda row: euclidian_dist((row[0],row[1]),location)) \
-.min()"""
-
 def euclidian_dist(center, location):
     ''' Euclidian distance between two 2D points.
     '''
@@ -68,9 +61,13 @@ centers = road_df.select("*") \
     .select(['center_long', 'center_lat', 'id']) \
     .drop_duplicates(['center_long','center_lat'])
 
-location = (-73.861616, 45.45505)
+'''location = (-73.861616, 45.45505)'''
 k = 10
 centers_rdd=centers.rdd
+accidents_rdd = accidents_df.select(['LOC_LONG', 'LOC_LAT']).rdd
+
+test=accidents_rdd.map(lambda row: Row(value=(row.LOC_LONG,row.LOC_LAT)))
+combine = centers_rdd.cartesian(test)
 
 center_neighbours = get_nearest_neighbours(centers_rdd, location, k)
 val = get_most_probable_section(centers_rdd, center_neighbours, location)

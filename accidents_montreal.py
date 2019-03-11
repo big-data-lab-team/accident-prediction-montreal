@@ -8,9 +8,6 @@ import pandas as pd
 import os
 from pyspark.sql.types import StringType, BooleanType, IntegerType, FloatType, StructType, StructField, DataType
 
-sc = pyspark.SparkContext("local", "First App")
-sqlContext = pyspark.sql.SQLContext(sc)
-
 def fetch_accidents_montreal():
     if not os.path.isdir('data'):
         os.mkdir('data')
@@ -28,7 +25,7 @@ def fetch_accidents_montreal():
     except (URLError, HTTPError):
         print('Unable to find montreal accidents dataset.')
 
-def extract_accidents_montreal_dataframe():
+def extract_accidents_montreal_dataframe(sqlContext):
     if os.path.isdir('data/accidents-montreal.parquet'):
         print('Skip extraction of accidents montreal dataframe: already done, reading from file')
         try:
