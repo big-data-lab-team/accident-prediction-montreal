@@ -78,15 +78,15 @@ def kml_extract_RDD(xml_file):
         raise ValueError('An error occured while extracting the content of the input file into a dataframe.')
     return rows
 
-def get_road_segments_RDD(sc):
-    return sc.parallelize(os.listdir('data/road-network/')) \
+def get_road_segments_RDD(spark):
+    return spark.sparkContext.parallelize(os.listdir('data/road-network/')) \
         .map(lambda f: BytesIO(ZipFile(f'data/road-network/{f}', 'r').read('doc.kml')))
 
-def extract_road_segments_DF(sc, sqlContext):
+def extract_road_segments_DF(spark):
     if os.path.isdir('data/road-network.parquet'):
         print('Skip extraction of road network dataframe: already done, reading from file')
         try:
-            return sqlContext.read.parquet('data/road-network.parquet')
+            return spark.read.parquet('data/road-network.parquet')
         except:
             pass
 

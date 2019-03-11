@@ -25,11 +25,11 @@ def fetch_accidents_montreal():
     except (URLError, HTTPError):
         print('Unable to find montreal accidents dataset.')
 
-def extract_accidents_montreal_dataframe(sqlContext):
+def extract_accidents_montreal_dataframe(spark):
     if os.path.isdir('data/accidents-montreal.parquet'):
         print('Skip extraction of accidents montreal dataframe: already done, reading from file')
         try:
-            return sqlContext.read.parquet('data/accidents-montreal.parquet')
+            return spark.read.parquet('data/accidents-montreal.parquet')
         except:
             pass
 
@@ -45,6 +45,6 @@ def extract_accidents_montreal_dataframe(sqlContext):
 
     fields = list(map(lambda u: StructField(u[0], u[1], True), zip(cols,types)))
     sch = StructType(fields)
-    df = sqlContext.createDataFrame(data=pddf, schema=sch).repartition(200)
+    df = spark.createDataFrame(data=pddf, schema=sch).repartition(200)
     df.write.parquet('data/accidents-montreal.parquet')
     return df
