@@ -43,17 +43,16 @@ def get_most_probable_section(centers_rdd, center_neighbours, location):
             .take(1)
 
 #init spark
-sc = pyspark.SparkContext("local", "First App")
 spark = pyspark.sql.SparkSession \
     .builder \
     .appName("Python Spark SQL basic example") \
     .config("spark.some.config.option", "some-value") \
     .getOrCreate()
-sqlContext = pyspark.sql.SQLContext(sc)
+sqlContext = pyspark.sql.SQLContext(spark.sparkContext)
 
 #retrieve datasets
 accidents_df=extract_accidents_montreal_dataframe(sqlContext)
-road_df=extract_road_segments_DF(sc, sqlContext)
+road_df=extract_road_segments_DF(spark.sparkContext, sqlContext)
 
 #get centers of road segments from road_df
 centers = road_df.select("*") \
