@@ -36,8 +36,11 @@ def extract_accidents_montreal_dataframe():
         except:
             pass
 
+    # We read directly from ZIP to avoid disk IO
     file = BytesIO(ZipFile('data/accidents-montreal.zip', 'r').read('Accidents_2012_2017/Accidents_2012_2017.csv'))
     pddf=pd.read_csv(file)
+    
+    # Create Spark schema, necessary to convert Pandas DF to Spark DF since dataframe contains different data types
     cols=pddf.columns.tolist()
     types=pddf.dtypes \
         .replace('object',StringType()) \
@@ -45,9 +48,9 @@ def extract_accidents_montreal_dataframe():
         .replace('float64',FloatType()) \
         .replace('string',StringType()) \
         .tolist()
-
     fields = list(map(lambda u: StructField(u[0], u[1], True), zip(cols,types)))
     sch = StructType(fields)
+    
     df = sqlContext.createDataFrame(data=pddf, schema=sch).repartition(200)
     df.write.parquet('data/accidents-montreal.parquet')
     return df
