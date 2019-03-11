@@ -20,7 +20,7 @@ def get_nearest_neighbours(centers_rdd, location, k):
         .sortBy(lambda x: x.dist) \
         .take(k)
 
-def get_most_probable_section(spark, road_rdd, center_neighbours, location):
+def get_most_probable_section(spark, road_df, center_neighbours, location):
     ''' Return the nearest road segment from a given location (long,lat) given the center of this segment.
     Procedure:
         Given a list of segment's centers that could be the nearest from location 'location':
@@ -30,17 +30,22 @@ def get_most_probable_section(spark, road_rdd, center_neighbours, location):
     '''
     bests=list()
     for cn in center_neighbours :
-        bests.append(road_rdd \
-            .filter(lambda c: c.center_long==cn.center_long and c.center_lat==cn.center_lat) \
-            .map(lambda c: Row(center_long=c[0], center_lat=c[1], id=c[2], dist=euclidian_dist((c[0], c[1]), location))) \
-            .union(spark.parallelize([cn])) \
-            .sortBy(lambda x: x.dist) \
-            .take(1))
+        bests.append((road_df
+            .filter(lambda c: c.center_long==cn.center_long and c.center_lat==cn.center_lat)
+            .withColumn('dist', road_df.center_long **2 + road_df.center_lat**2)
+            )
 
-    bests = list(map(lambda el:el[0], bests))
+
+    """.map(lambda c: Row(center_long=c[0], center_lat=c[1], id=c[2], dist=euclidian_dist((c[0], c[1]), location)))
+    .union(spark.parallelize([cn]))
+    .sortBy(lambda x: x.dist)
+    .take(1)))"""
+
+    """bests = list(map(lambda el:el[0], bests))
     return spark.parallelize(bests) \
             .sortBy(lambda x: x.dist) \
-            .take(1)
+            .take(1)"""
+    return
 
 #init spark
 spark = pyspark.sql.SparkSession \
@@ -68,4 +73,4 @@ accidents_rdd = accidents_df.select(['LOC_LONG', 'LOC_LAT']).rdd
 combine = centers_rdd.cartesian(test)'''
 
 center_neighbours = get_nearest_neighbours(centers_rdd, location, k)
-val = get_most_probable_section(spark, road_df.rdd, center_neighbours, location)
+val = get_most_probable_section(spark, road_df, center_neighbours, location)
