@@ -7,6 +7,7 @@ from zipfile import ZipFile
 from io import BytesIO
 from bs4 import BeautifulSoup
 import pandas as pd
+from pyspark.sql.functions import col, abs, hash
 
 def fetch_road_network():
     if not os.path.isdir('data'):
@@ -92,9 +93,10 @@ def extract_road_segments_DF(spark):
 
     print('Extracting road network dataframe...')
     cols=['street_name','street_type','center_long', 'center_lat', 'coord_long', 'coord_lat']
-    road_seg_df = get_road_segments_RDD() \
-        .flatMap(kml_extract_RDD) \
+    road_seg_df = (get_road_segments_RDD(spark)
+        .flatMap(kml_extract_RDD)
         .toDF(cols)
+        .withColumn('street_id', abs(hash(col('center_long'), col('center_lat')))))
 
     road_seg_df.write.parquet('data/road-network.parquet')
     print('Extracting road network dataframe done')
