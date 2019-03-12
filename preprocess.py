@@ -1,7 +1,7 @@
 from accidents_montreal import extract_accidents_montreal_dataframe
 from road_network import extract_road_segments_DF
 import math
-import pyspark
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import monotonically_increasing_id
 from pyspark.sql import Row
 
@@ -30,10 +30,11 @@ def get_most_probable_section(spark, road_df, center_neighbours, location):
     '''
     bests=list()
     for cn in center_neighbours :
-        bests.append((road_df
-            .filter(lambda c: c.center_long==cn.center_long and c.center_lat==cn.center_lat)
-            .withColumn('dist', road_df.center_long **2 + road_df.center_lat**2)
-            )
+        bests.append(
+            road_df
+                .filter(lambda c: c.center_long==cn.center_long and c.center_lat==cn.center_lat)
+                .withColumn('dist', road_df.center_long **2 + road_df.center_lat**2)
+        )
 
 
     """.map(lambda c: Row(center_long=c[0], center_lat=c[1], id=c[2], dist=euclidian_dist((c[0], c[1]), location)))
@@ -42,17 +43,19 @@ def get_most_probable_section(spark, road_df, center_neighbours, location):
     .take(1)))"""
 
     """bests = list(map(lambda el:el[0], bests))
-    return spark.parallelize(bests) \
-            .sortBy(lambda x: x.dist) \
+    return spark.parallelize(bests) 
+            .sortBy(lambda x: x.dist) 
             .take(1)"""
     return
 
+def init_spark():
+    return (SparkSession
+        .builder
+        .appName("Road accidents prediction")
+        .getOrCreate())
+
 #init spark
-spark = pyspark.sql.SparkSession \
-    .builder \
-    .appName("Python Spark SQL basic example") \
-    .config("spark.some.config.option", "some-value") \
-    .getOrCreate()
+spark = init_spark()
 
 #retrieve datasets
 accidents_df=extract_accidents_montreal_dataframe(spark)
