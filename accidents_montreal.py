@@ -7,6 +7,7 @@ import pyspark
 import pandas as pd
 import os
 from pyspark.sql.types import StringType, BooleanType, IntegerType, FloatType, StructType, StructField, DataType
+from pyspark.sql.functions import monotonically_increasing_id
 
 def fetch_accidents_montreal():
     if not os.path.isdir('data'):
@@ -47,6 +48,7 @@ def extract_accidents_montreal_dataframe(spark):
         .tolist()
     fields = list(map(lambda u: StructField(u[0], u[1], True), zip(cols,types)))
     sch = StructType(fields)
-    df = spark.createDataFrame(data=pddf, schema=sch).repartition(200)
+    df = (spark.createDataFrame(data=pddf, schema=sch).repartition(200)
+            .withColumn('ACCIDENT_ID', monotonically_increasing_id()))
     df.write.parquet('data/accidents-montreal.parquet')
     return df
