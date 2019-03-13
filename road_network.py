@@ -58,6 +58,15 @@ def get_kml_content(soup):
                             float(center[1]),
                             float(coords[0]),
                             float(coords[1])])
+            # Add center of the street as a point of the street
+            rows.append([
+                    street_name,
+                    street_type,
+                    float(center[0]),
+                    float(center[1]),
+                    float(center[0]),
+                    float(center[1])])
+    
     return rows
 
 def kml_extract_RDD(xml_file):
