@@ -1,8 +1,9 @@
-from urllib.request import urlopen 
+from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import pandas as pd
 from os import mkdir
 from os.path import isdir, isfile
+
 
 def get_weather(lat, long, year, month, day, hour):
     stations = get_stations(lat, long, year, month, day)
@@ -14,41 +15,59 @@ def get_weather(lat, long, year, month, day, hour):
         weighted_average_denum += 1 / station[1]
     return weighted_average_num/weighted_average_denum
 
-def get_stations(lat, long, year, month, day): 
+
+def get_stations(lat, long, year, month, day):
     lat = degree_to_DMS(lat)
     long = degree_to_DMS(long)
-    url = f'http://climate.weather.gc.ca/historical_data/search_historic_data_stations_e.html?searchType=stnProx&timeframe=1&txtRadius=25&selCity=&selPark=&optProxType=custom&txtCentralLatDeg={abs(lat[0])}&txtCentralLatMin={lat[1]}&txtCentralLatSec={lat[2]:.1f}&txtCentralLongDeg={abs(long[0])}&txtCentralLongMin={long[1]}&txtCentralLongSec={long[2]:.1f}&StartYear=1840&EndYear=2019&optLimit=specDate&Year={year}&Month={month}&Day={day}&selRowPerPage=100'
+    url = (f'http://climate.weather.gc.ca/historical_data/'
+           f'search_historic_data_stations_e.html?searchType=stnProx&'
+           f'timeframe=1&txtRadius=25&selCity=&selPark=&optProxType=custom&'
+           f'txtCentralLatDeg={abs(lat[0])}&txtCentralLatMin={lat[1]}&'
+           f'txtCentralLatSec={lat[2]:.1f}&txtCentralLongDeg={abs(long[0])}&'
+           f'txtCentralLongMin={long[1]}&txtCentralLongSec={long[2]:.1f}&'
+           f'StartYear=1840&EndYear=2019&optLimit=specDate&Year={year}&'
+           f'Month={month}&Day={day}&selRowPerPage=100')
     page = BeautifulSoup(urlopen(url), 'lxml')
     stations = (page.body.main
-         .find('div', class_='historical-data-results proximity hidden-lg')
-         .find_all('form', recursive=False))
+                .find('div',
+                      class_='historical-data-results proximity hidden-lg')
+                .find_all('form', recursive=False))
     return [parse_station(s) for s in stations]
 
 
 def get_station_temp(id, year, month, day, hour):
     cache_file_path = f'data/weather/s{id}_{year}_{month}.h5'
     if isfile(cache_file_path):
-        return pd.read_hdf(cache_file_path, key='w').loc[f'{year}-{month}-{day} {hour}:00'][0]    
-    url = f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?format=csv&stationID={id}&Year={year}&Month={month}&Day={day}&timeframe=1&submit=Download+Data'
+        return (pd.read_hdf(cache_file_path, key='w')
+                .loc[f'{year}-{month}-{day} {hour}:00'][0])
+    url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
+           f'format=csv&stationID={id}&Year={year}&Month={month}&Day={day}&'
+           f'timeframe=1&submit=Download+Data')
     csvfile = urlopen(url)
     skip_header(csvfile)
-    df = pd.read_csv(csvfile, usecols=['Date/Time', 'Temp (°C)'], index_col='Date/Time', parse_dates=['Date/Time'])
+    df = pd.read_csv(csvfile, usecols=['Date/Time', 'Temp (°C)'],
+                     index_col='Date/Time', parse_dates=['Date/Time'])
     if not isdir('data/weather/'):
         mkdir('data/weather/')
     df.to_hdf(cache_file_path, key='w')
     return df.loc[f'{year}-{month}-{day} {hour}:00'][0]
 
+
 def parse_station(s):
     return (
         int(s.find('input', {'name': 'StationID'})['value']),
-        float(s.find_all('div', class_='row', recursive=False)[2].div.find_next_sibling().text.strip())
+        float(s.find_all('div', class_='row',
+              recursive=False)[2].div.find_next_sibling().text.strip())
     )
 
+
 def degree_to_DMS(degree):
-    return (int(degree), int(60*(abs(degree)%1)), ((60*(abs(degree)%1))%1)*60)
+    return (int(degree), int(60 * (abs(degree) % 1)),
+            ((60 * (abs(degree) % 1)) % 1) * 60)
+
 
 def skip_header(file):
     n_emptyLineMet = 0
     while n_emptyLineMet < 2:
         if file.readline() == b'\n':
-                n_emptyLineMet += 1
+            n_emptyLineMet += 1

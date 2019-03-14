@@ -15,6 +15,7 @@ pyarrow = "*"
 ipykernel = "*"
 pyspark = "*"
 tables = "*"
+pycodestyle = "*"
 
 [requires]
 python_version = "3.7"
