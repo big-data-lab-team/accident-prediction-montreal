@@ -3,6 +3,7 @@ import pandas as pd
 from os import mkdir
 from os.path import isdir, isfile
 from requests import get
+from io import StringIO
 import math
 
 def get_weather(lat, long, year, month, day, hour):
