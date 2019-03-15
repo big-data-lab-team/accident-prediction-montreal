@@ -13,8 +13,9 @@ def get_weather(lat, long, year, month, day, hour):
     weighted_average_denum = 0
     for station in stations:
         temp = get_station_temp(station[0], year, month, day, hour)
-        weighted_average_num += temp / station[1]
-        weighted_average_denum += 1 / station[1]
+        if not math.isnan(temp):
+            weighted_average_num += temp / station[1]
+            weighted_average_denum += 1 / station[1]
     return weighted_average_num/weighted_average_denum
 
 
