@@ -16,6 +16,7 @@ ipykernel = "*"
 pyspark = "*"
 tables = "*"
 pycodestyle = "*"
+requests = "*"
 
 [requires]
 python_version = "3.7"
