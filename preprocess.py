@@ -1,54 +1,142 @@
-from accidents_montreal import extract_accidents_montreal_dataframe
-from road_network import extract_road_segments_DF
-import math
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import monotonically_increasing_id
-from pyspark.sql import Row
+from accidents_montreal import fetch_accidents_montreal,\
+                               extract_accidents_montreal_dataframe
+from road_network import fetch_road_network, extract_road_segments_DF
+from pyspark.sql import SparkSession, Window
+from pyspark.sql.functions import atan2, sqrt, row_number, cos, sin, radians,\
+                                  col, rank, avg
 
 
-def euclidian_dist(center, location):
-    ''' Euclidian distance between two 2D points.
-    '''
-    if not len(center) == len(location) == 2:
-        raise ValueError('Bad argument(s)')
-    return math.sqrt((center[0]-location[0])**2 + (center[1]-location[1])**2)
+def match_accidents_with_roads(road_df, accident_df):
+    nb_top_road_center_preselected = 5
+    max_distance_accepted = 10  # in meters
 
+    # Source: https://www.movable-type.co.uk/scripts/latlong.html
+    def distance_intermediate_formula(lat1, long1, lat2, long2):
+        return (pow(sin(radians(col(lat1) - col(lat2))/2), 2)
+                + (pow(sin(radians(col(long1) - col(long2))/2), 2)
+                * cos(radians(col(lat1))) * cos(radians(col(lat2)))))
+    distance_measure = atan2(sqrt(col('distance_inter')),
+                             sqrt(1-col('distance_inter')))
+    earth_diameter = 6371 * 2 * 1000  # in meter
 
-def get_nearest_neighbours(centers_rdd, location, k):
-    ''' Get the k nearest centers from a given location (longitude,latitude)
-    '''
-    return (centers_rdd
-            .map(lambda row: Row(center_long=row[0], center_lat=row[1],
-                                 id=row[2],
-                                 dist=euclidian_dist((row[0], row[1]),
-                                                     location)))
-            .sortBy(lambda x: x.dist)
-            .take(k))
+    # Compute distance between accident and road centers to identify the
+    # top nb_top_road_center_preselected closest roads
+    road_centers = (road_df
+                    .select(['street_id', 'center_long', 'center_lat'])
+                    .drop_duplicates()
+                    .persist())
 
+    accident_window = (Window.partitionBy("ACCIDENT_ID")
+                       .orderBy("distance_measure"))
+    accidents_top_k_roads = (accident_df
+                             .select('LOC_LAT', 'LOC_LONG', 'ACCIDENT_ID')
+                             .crossJoin(road_centers)
+                             .withColumn('distance_inter',
+                                         distance_intermediate_formula(
+                                                        'LOC_LAT',
+                                                        'LOC_LONG',
+                                                        'center_lat',
+                                                        'center_long'))
+                             .withColumn('distance_measure', distance_measure)
+                             .select('ACCIDENT_ID', 'street_id',
+                                     'distance_measure', 'LOC_LAT', 'LOC_LONG',
+                                     rank().over(accident_window)
+                                     .alias('distance_rank'))
+                             .filter(col('distance_rank') <=
+                                     nb_top_road_center_preselected)
+                             .drop('distance_measure', 'distance_rank')
+                             .persist())
 
-def get_most_probable_section(spark, road_df, center_neighbours, location):
-    ''' Return the nearest road segment from a given location (long,lat) given
-    the center of this segment.
-    Procedure:
-        Given a list of segment's centers that could be the nearest from
-        location 'location':
-            for each segment's center:
-                retrieve its coordinates and return the nearest coordinate from
-                location 'location'
-        Now that we got the nearest coordinate of all most probable segments,
-        find the nearest coordinate and return the corresponding segment.
-    '''
-    bests = list()
-    for cn in center_neighbours:
-        bests.append(
-            road_df
-            .filter(lambda c: c.center_long == cn.center_long
-                    and c.center_lat == cn.center_lat)
-            .withColumn('dist',
-                        road_df.center_long ** 2 + road_df.center_lat ** 2)
-        )
+    # For each accident identify road point closest
+    accidents_roads_first_match = (accidents_top_k_roads
+                                   .join(road_df, 'street_id')
+                                   .withColumn('distance_inter',
+                                               distance_intermediate_formula(
+                                                              'LOC_LAT',
+                                                              'LOC_LONG',
+                                                              'coord_lat',
+                                                              'coord_long'))
+                                   .withColumn('distance_measure',
+                                               distance_measure)
+                                   .select('ACCIDENT_ID', 'LOC_LAT',
+                                           'LOC_LONG', 'coord_lat',
+                                           'coord_long', 'street_id',
+                                           'street_name',
+                                           row_number()
+                                           .over(accident_window)
+                                           .alias('distance_rank'),
+                                           'distance_measure')
+                                   .filter(col('distance_rank') == 1)
+                                   .withColumn('distance',
+                                               col('distance_measure')
+                                               * earth_diameter)
+                                   .drop('distance_rank', 'distance_measure',
+                                         'LOC_LAT', 'LOC_LONG', 'coord_lat',
+                                         'coord_long')
+                                   .persist())
 
-    return
+    # If the distance is lower than max_distance_accepted we keep the
+    # accident/street matches
+    accidents_road_correct_match = (accidents_roads_first_match
+                                    .filter(col('distance')
+                                            < max_distance_accepted)
+                                    .select('ACCIDENT_ID', 'street_id'))
+
+    # If not, we try to get a better match by adding intermediate points on
+    # the preselected streets
+
+    # For unsatisfying matches, retrieves the top
+    # nb_top_road_center_preselected streets with their points
+    accidents_close_streets_coords = (accidents_roads_first_match
+                                      .filter(col('distance')
+                                              >= max_distance_accepted)
+                                      .select('ACCIDENT_ID')
+                                      .join(accidents_top_k_roads,
+                                            'ACCIDENT_ID')
+                                      .join(road_df, 'street_id')
+                                      .select('ACCIDENT_ID', 'street_id',
+                                              'LOC_LAT', 'LOC_LONG',
+                                              'coord_long', 'coord_lat')
+                                      .persist())
+
+    # Add the intermediate points
+    street_rolling_window = (Window
+                             .partitionBy('street_id')
+                             .orderBy("coord_long")
+                             .rowsBetween(0, +1))
+    accidents_close_streets_with_additional_coords = \
+        (accidents_close_streets_coords
+         .select('ACCIDENT_ID', 'street_id', 'LOC_LAT', 'LOC_LONG',
+                 avg('coord_long')
+                 .over(street_rolling_window)
+                 .alias('coord_long'),
+                 avg('coord_lat')
+                 .over(street_rolling_window)
+                 .alias('coord_lat'))
+         .union(accidents_close_streets_coords)
+         .dropDuplicates())
+
+    # Recompute distances between accident and new set of points
+    # and use closest point to identify street
+    accidents_roads_first_match_with_additional_coords = \
+        (accidents_close_streets_with_additional_coords
+         .withColumn('distance_inter', distance_intermediate_formula(
+                                                      'LOC_LAT',
+                                                      'LOC_LONG',
+                                                      'coord_lat',
+                                                      'coord_long'))
+         .withColumn('distance_measure', distance_measure)
+         .select('ACCIDENT_ID', 'street_id', 'LOC_LAT', 'LOC_LONG',
+                 'coord_lat', 'coord_long',
+                 row_number().over(accident_window).alias('distance_rank'))
+         .filter(col('distance_rank') == 1)
+         .drop('distance_rank', 'LOC_LAT', 'LOC_LONG',
+               'coord_lat', 'coord_long'))
+
+    # Union accidents matched correctly with first method with the accidents
+    # for which we used more street points
+    return (accidents_road_correct_match
+            .union(accidents_roads_first_match_with_additional_coords))
 
 
 def init_spark():
@@ -62,22 +150,7 @@ def init_spark():
 spark = init_spark()
 
 # retrieve datasets
+fetch_road_network()
+fetch_accidents_montreal()
 accidents_df = extract_accidents_montreal_dataframe(spark)
 road_df = extract_road_segments_DF(spark)
-
-# get centers of road segments from road_df
-centers = road_df.select("*") \
-    .withColumn("id", monotonically_increasing_id()) \
-    .select(['center_long', 'center_lat', 'id']) \
-    .drop_duplicates(['center_long', 'center_lat'])
-
-location = (-73.861616, 45.45505)
-k = 10
-centers_rdd = centers.rdd
-accidents_rdd = accidents_df.select(['LOC_LONG', 'LOC_LAT']).rdd
-
-'''test=accidents_rdd.map(lambda row: Row(value=(row.LOC_LONG,row.LOC_LAT)))
-combine = centers_rdd.cartesian(test)'''
-
-center_neighbours = get_nearest_neighbours(centers_rdd, location, k)
-val = get_most_probable_section(spark, road_df, center_neighbours, location)
