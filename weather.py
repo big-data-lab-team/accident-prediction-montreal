@@ -1,9 +1,9 @@
-from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import pandas as pd
 from os import mkdir
 from os.path import isdir, isfile
 from requests import get
+import math
 
 def get_weather(lat, long, year, month, day, hour):
     ''' Get the weather at a given location at a given time.
@@ -40,19 +40,21 @@ def get_stations(lat, long, year, month, day):
     return [parse_station(s) for s in stations]
 
 
-def get_station_temp(id, year, month, day, hour):
-    ''' Get temperature for a given station.
+def get_station_temp(station_id, year, month, day, hour):
+    ''' Get temperature for a given station (given its station ID).
     '''
-    cache_file_path = f'data/weather/s{id}_{year}_{month}.h5'
+    cache_file_path = f'data/weather/s{station_id}_{year}_{month}.h5'
     if isfile(cache_file_path):
         return (pd.read_hdf(cache_file_path, key='w')
                 .loc[f'{year}-{month}-{day} {hour}:00'][0])
     url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
-           f'format=csv&stationID={id}&Year={year}&Month={month}&Day={day}&'
+           f'format=csv&stationID={station_id}&Year={year}&Month={month}&Day={day}&'
            f'timeframe=1&submit=Download+Data')
-    csvfile = urlopen(url)
-    skip_header(csvfile)
-    df = pd.read_csv(csvfile, usecols=['Date/Time', 'Temp (°C)'],
+
+    csvfile = get(url).text
+    with  StringIO(csvfile) as csvfile:
+        skip_header(csvfile)
+        df = pd.read_csv(csvfile, usecols=['Date/Time', 'Temp (°C)'],
                      index_col='Date/Time', parse_dates=['Date/Time'])
     if not isdir('data/weather/'):
         mkdir('data/weather/')
@@ -86,5 +88,5 @@ def skip_header(file):
     '''
     n_emptyLineMet = 0
     while n_emptyLineMet < 2:
-        if file.readline() == b'\n':
+        if file.readline() == '\n':
             n_emptyLineMet += 1
