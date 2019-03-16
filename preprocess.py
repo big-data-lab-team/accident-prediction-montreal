@@ -1,9 +1,14 @@
 from accidents_montreal import fetch_accidents_montreal,\
                                extract_accidents_montreal_dataframe
 from road_network import fetch_road_network, extract_road_segments_DF
+from weather import get_weather
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import atan2, sqrt, row_number, cos, sin, radians,\
                                   col, rank, avg
+
+
+def match_accidents_with_weather(accident_df):
+    accident_df.select('DT_ACCDN','LOC_LAT', 'LOC_LONG', 'HEURE_ACCDN')
 
 
 def match_accidents_with_roads(road_df, accident_df):
