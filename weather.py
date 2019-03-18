@@ -115,19 +115,16 @@ def get_pandas_dataframe(url):
 def get_station_temp(station_id, year, month, day, hour):
     ''' Get temperature for a given station (given its station ID).
     '''
-    cache_file_path = ('data/weather/s{0}_{1}_{2}.h5'
-                       .format(station_id, year, month))
+    cache_file_path = f'data/weather/s{station_id}_{year}_{month}.h5'
 
     """if isfile("cache_file_path"):
         df = pd.read_hdf(cache_file_path, key='w')
     else:"""
 
-    url = ('http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
-           + 'format=csv&stationID={0}&Year={1}'
-           .format(station_id, year)
-           + '&Month={0}&Day={1}&'
-           .format(month, day)
-           + 'timeframe=1&submit=Download+Data')
+    url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
+           f'format=csv&stationID={station_id}&Year={year}'
+           f'&Month={month}&Day={day}&'
+           f'timeframe=1&submit=Download+Data')
     try:
         df = get_pandas_dataframe(url)
     except Exception as e:
