@@ -12,6 +12,15 @@ import numpy as np
 import math
 
 
+def test_weather():
+    cols=['Dew Point Temp (°C)', 'Dew Point Temp Flag', 'Hmdx', 'Hmdx Flag',
+          'Rel Hum (%)', 'Rel Hum Flag', 'Stn Press (kPa)', 'Stn Press Flag',
+          'Temp (°C)', 'Temp Flag', 'Visibility (km)', 'Visibility Flag',
+          'Weather', 'Wind Chill', 'Wind Chill Flag', 'Wind Dir (10s deg)',
+          'Wind Dir Flag', 'Wind Spd (km/h)', 'Wind Spd Flag']
+    pass
+
+
 def test_fetch_one_row():
     test_dict = {'Dew Point Temp Flag': 'M',
                  'Hmdx': np.zeros(1),
