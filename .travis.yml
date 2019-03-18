@@ -7,10 +7,8 @@ python:
     - nightly
 
 install:
-    - pip install pipenv
-    - pipenv install
-    - pipenv shell
-    - pipenv install coveralls pytest==3.6 pytest-cov pycodestyle pyspark
+    - pip install coveralls pytest==3.6 pytest-cov pycodestyle
+    - pip install pyspark requests beautifulsoup4 pandas numpy
 
 script:
     - export PYTHONPATH=${PYTHONPATH}:${PWD}
