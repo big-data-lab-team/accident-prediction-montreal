@@ -7,12 +7,15 @@ python:
     - nightly
 
 install:
-    - pip install coveralls pytest==3.6 pytest-cov pycodestyle nibabel
+    - pip install pipenv
+    - pipenv install
+    - pipenv shell
+    - pipenv install coveralls pytest==3.6 pytest-cov pycodestyle pyspark
 
 script:
     - export PYTHONPATH=${PYTHONPATH}:${PWD}
     - pycodestyle *.py tests/*.py
-    - pytest --cov=accident-prediction-montreal tests
+    - pytest
 
 after_success:
 - coveralls
