@@ -7,8 +7,46 @@ from pyspark.sql.functions import atan2, sqrt, row_number, cos, sin, radians,\
                                   col, rank, avg
 
 
+def extract_date_val(i):
+    return udf(lambda val: val.split('/')[i])
+
+
+@udf
+def extract_hour(val):
+    return val.split('-')[0].split(':')[0]
+
+
+def get_weather_(row):
+    try:
+        return get_weather(int(row.LOC_LAT),
+                           int(row.LOC_LONG),
+                           int(row.year),
+                           int(row.month),
+                           int(row.day),
+                           int(row.HEURE_ACCDN))
+    except Exception as e:
+        print('An error occured.')
+        print(e)
+        return row
+
+
 def match_accidents_with_weather(accident_df):
-    accident_df.select('DT_ACCDN','LOC_LAT', 'LOC_LONG', 'HEURE_ACCDN')
+    return (accidents_df.select('DT_ACCDN',
+                                'LOC_LAT',
+                                'LOC_LONG',
+                                'HEURE_ACCDN')
+            .withColumn("year",
+                        extract_date_val(0)(accidents_df.DT_ACCDN))
+            .withColumn("month",
+                        extract_date_val(1)(accidents_df.DT_ACCDN))
+            .withColumn("day",
+                        extract_date_val(2)(accidents_df.DT_ACCDN))
+            .withColumn("HEURE_ACCDN",
+                        extract_hour(accidents_df.HEURE_ACCDN))
+            .drop('DT_ACCDN')
+            .replace('Non précisé', '00')
+            .rdd
+            .map(lambda row: get_weather_(row)))
 
 
 def match_accidents_with_roads(road_df, accident_df):

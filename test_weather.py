@@ -7,17 +7,43 @@ from pyspark.sql.functions import monotonically_increasing_id
 from pyspark.sql import Row
 import math
 from io import StringIO
+from weather import get_weather
+import numpy as np
+import math
 
-fetch_accidents_montreal()
-spark = (SparkSession
-            .builder
-            .appName("Road accidents prediction")
-            .getOrCreate())
-df=extract_accidents_montreal_dataframe(spark)
-test=df.take(5)
-test = list(map(lambda e: (e.LOC_LAT, e.LOC_LONG), test))
-t= test[0]
-lat, long = t
-year, month, day = (2006,5,2)
-hour = 0
-get_weather(lat, long, year, month, day, hour)
+
+def test_fetch_one_row():
+    test_dict = {'Dew Point Temp Flag': 'M',
+                 'Hmdx': np.zeros(1),
+                 'Hmdx Flag': np.zeros(1),
+                 'Rel Hum Flag': 'M',
+                 'Stn Press Flag': 'M',
+                 'Temp Flag': 'M',
+                 'Visibility Flag': np.zeros(1),
+                 'Weather': 'Rain,Cloudy',
+                 'Wind Chill': np.zeros(1),
+                 'Wind Chill Flag': np.zeros(1),
+                 'Wind Dir Flag': np.zeros(1),
+                 'Wind Spd Flag': np.zeros(1)}
+
+    # get accident data
+    fetch_accidents_montreal()
+    spark = (SparkSession
+             .builder
+             .appName("Road accidents prediction")
+             .getOrCreate())
+    df = extract_accidents_montreal_dataframe(spark)
+    first_acc = df.filter('NO_SEQ_COLL == "SPVM _ 2015 _ 18203"').collect()[0]
+
+    # get weather data
+    new_row = get_weather(first_acc.LOC_LAT, first_acc.LOC_LONG, 2006, 5, 2, 0)
+    new_dict = dict()
+    for key in new_row.asDict().keys():
+        if isinstance(new_row[key], float):
+            if math.isnan(new_row[key]):
+                new_dict[key] = np.zeros(1)  # np.nan not comparable
+        else:
+            new_dict[key] = new_row[key]
+
+    # result
+    assert new_dict == test_dict

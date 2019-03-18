@@ -6,16 +6,17 @@ from requests import get
 from io import StringIO
 import math
 from pyspark.sql import Row
+import numpy as np
 
 
 def get_general_weather(weathers):
     ''' Get general weather information from multiple stations.
     '''
-    return weathers.loc[:,'Weather'] \
-                    .dropna() \
-                    .drop_duplicates() \
-                    .values \
-                    .tolist()
+    return (','.join(weathers.loc[:, 'Weather']
+                             .dropna()
+                             .drop_duplicates()
+                             .values
+                             .tolist()))
 
 
 def compute_temp(row):
@@ -27,10 +28,13 @@ def compute_temp(row):
 def get_temperature(weathers):
     ''' Get weighted average temperature from multiple stations.
     '''
-    temperatures = weathers[['Temp (°C)', 'station_denom']] \
-                            .dropna() \
-                            .apply(lambda row: compute_temp(row), axis=1)
-    return temperatures[0].sum() / temperatures[1].sum()
+    temperatures = (weathers[['Temp (°C)', 'station_denom']]
+                    .dropna()
+                    .apply(lambda row: compute_temp(row), axis=1))
+    if len(temperatures) >= 2:
+        return temperatures[0].sum() / temperatures[1].sum()
+    else:
+        return np.nan
 
 
 def preprocess_weathers(weathers):
@@ -38,29 +42,36 @@ def preprocess_weathers(weathers):
     stations, return a pyspark dataframe Row containing the averages/weighted
     averages of the retrieved data.
     '''
+    print(list(weathers.dtypes.index))
+    print(weathers.dtypes)
+
     # compute mean of numeric columns
     numeric_cols = [col for col in list(weathers.dtypes.index)
-                  if weathers.dtypes[col] == 'int64'
-                  or weathers.dtypes[col] == 'float64'
-                  and col != 'station_denom'
-                  and col != 'Temp (°C)']
+                    if (weathers.dtypes[col] == 'int64'
+                    or weathers.dtypes[col] == 'float64')
+                    and col != 'station_denom'
+                    and col != 'Temp (°C)']
     means = weathers.loc[:, numeric_cols].mean()
 
     # use majority vote on non numeric columns
-    non_numeric_cols = [col for col in list(weathers.dtypes.index)
-                        if col not in numeric_cols \
-                        + ['Weather', 'station_denom', 'Temp (°C)']]
-    non_num_weathers = weathers.loc[:, non_numeric_cols] \
-                                 .apply(lambda col:get_majority_vote(col),
-                                        axis=0)
+    non_numeric_cols = ([col for col in list(weathers.dtypes.index)
+                        if col not in numeric_cols
+                        + ['Weather', 'station_denom', 'Temp (°C)']])
+    non_num_weathers = (weathers.loc[:, non_numeric_cols]
+                                .apply(lambda col: get_majority_vote(col),
+                                       axis=0))
 
-    return Row(**dict(zip(non_num_weathers.index.values.tolist() \
-                          + means.index.values.tolist() \
-                          + ['Weather', 'Temp (°C)'], \
-                          non_num_weathers.values.tolist() \
-                          + means.values.tolist() \
-                          + [get_general_weather(weathers), \
-                             get_temperature(weathers)])))
+    print('numeric:', numeric_cols)
+    print('\n')
+    print('non numeric:', non_numeric_cols)
+
+    return (Row(**dict(zip(non_num_weathers.index.values.tolist()
+                           + means.index.values.tolist()
+                           + ['Weather', 'Temp (°C)'],
+                           non_num_weathers.values.tolist()
+                           + means.values.tolist()
+                           + [get_general_weather(weathers),
+                              get_temperature(weathers)]))))
 
 
 def get_weather(lat, long, year, month, day, hour):
@@ -71,22 +82,33 @@ def get_weather(lat, long, year, month, day, hour):
     cols = list()
     for station in stations:
         s = get_station_temp(station[0], year, month, day, hour)
-        s.loc["station_denom"] = station[1]
-        weathers.append(s)
-        if len(cols) == 0:
-            cols = s.index.values.tolist()
-    return preprocess_weathers(pd.DataFrame(weathers, columns=cols))
+        if all(i == np.nan for i in s):
+            continue
+        else:
+            s.loc["station_denom"] = station[1]
+            weathers.append(s)
+            if len(cols) == 0:
+                cols = s.index.values.tolist()
+
+    print(weathers)
+    if len(weathers) == 0:
+        return np.nan
+    else:
+        return preprocess_weathers(pd.DataFrame(weathers, columns=cols))
 
 
 def get_pandas_dataframe(url):
     ''' Get pandas dataframe from retrieved csv file using URL argument.
     '''
+    print('Fetching...')
     csvfile = get(url).text
+    print('Done. Extracting data...')
     df = None
-    with  StringIO(csvfile) as csvfile:
+    with StringIO(csvfile) as csvfile:
         skip_header(csvfile)
-        df = pd.read_csv(csvfile, usecols=['Date/Time', 'Temp (°C)'],
-                     index_col='Date/Time', parse_dates=['Date/Time'])
+        df = pd.read_csv(csvfile,
+                         index_col='Date/Time',
+                         parse_dates=['Date/Time'])
     return df
 
 
@@ -94,20 +116,33 @@ def get_station_temp(station_id, year, month, day, hour):
     ''' Get temperature for a given station (given its station ID).
     '''
     cache_file_path = f'data/weather/s{station_id}_{year}_{month}.h5'
-    if isfile(cache_file_path):
-        df = pd.read_hdf(cache_file_path, key='w')
-    else:
-        url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
-               f'format=csv&stationID={station_id}&Year={year}&Month={month}&Day={day}&'
-               f'timeframe=1&submit=Download+Data')
-        df = get_pandas_dataframe(url)
-        if not isdir('data/weather/'):
-            mkdir('data/weather/')
-        df.to_hdf(cache_file_path, key='w')
-        df.to_hdf(cache_file_path, key='w')
 
-    return df.loc[f'{year}-{month}-{day} {hour}:00'] \
-             .drop(['Year', 'Month', 'Day', 'Time'])
+    """if isfile("cache_file_path"):
+        df = pd.read_hdf(cache_file_path, key='w')
+    else:"""
+
+    url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
+           f'format=csv&stationID={station_id}&Year={year}'
+           f'&Month={month}&Day={day}&'
+           f'timeframe=1&submit=Download+Data')
+    try:
+        df = get_pandas_dataframe(url)
+    except Exception as e:
+        print('Unable to fetch:', url)
+        print(e)
+        return np.nan
+
+    if not isdir('data/weather/'):
+        mkdir('data/weather/')
+
+    """df.to_hdf(cache_file_path, key='w')
+    df.to_hdf(cache_file_path, key='w')"""
+
+    if len(df.columns) > 4:
+        return (df.loc[f'{year}-{month}-{day} {hour}:00']
+                .drop(['Year', 'Month', 'Day', 'Time']))
+    else:
+        return np.nan
 
 
 def get_stations(lat, long, year, month, day):
@@ -141,9 +176,10 @@ def get_majority_vote(col):
     vals = col.dropna().drop_duplicates().tolist()
     if len(vals) > 0:
         e = max(set(vals), key=vals.count)
-        return [v for v in vals if vals.count(e) == vals.count(v)]
+        return ','.join([str(v) for v in vals
+                         if vals.count(e) == vals.count(v)])
     else:
-        return []
+        return ''
 
 
 def parse_station(s):
