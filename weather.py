@@ -121,10 +121,12 @@ def get_station_temp(station_id, year, month, day, hour):
         df = pd.read_hdf(cache_file_path, key='w')
     else:"""
 
-    url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
-           f'format=csv&stationID={station_id}&Year={year}'
-           f'&Month={month}&Day={day}&'
-           f'timeframe=1&submit=Download+Data')
+    url = ('http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
+           +'format=csv&stationID={0}&Year={1}'
+           .format(station_id, year)
+           + '&Month={0}&Day={1}&'
+           .format(month, day)
+           + 'timeframe=1&submit=Download+Data')
     try:
         df = get_pandas_dataframe(url)
     except Exception as e:
