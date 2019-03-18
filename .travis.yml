@@ -11,7 +11,7 @@ install:
 script:
     - export PYTHONPATH=${PYTHONPATH}:${PWD}
     - pycodestyle *.py tests/*.py
-    - pytest
+    - pytest --cov=accident-prediction-montreal ./
 
 after_success:
-- coveralls
+    - coveralls
