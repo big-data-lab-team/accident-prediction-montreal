@@ -122,7 +122,7 @@ def get_station_temp(station_id, year, month, day, hour):
     else:"""
 
     url = ('http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
-           +'format=csv&stationID={0}&Year={1}'
+           + 'format=csv&stationID={0}&Year={1}'
            .format(station_id, year)
            + '&Month={0}&Day={1}&'
            .format(month, day)
