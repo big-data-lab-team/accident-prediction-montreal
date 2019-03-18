@@ -18,6 +18,7 @@ tables = "*"
 pycodestyle = "*"
 requests = "*"
 pytest = "*"
+coverage = "*"
 
 [requires]
 python_version = "3.7"
