@@ -1,0 +1,18 @@
+dist: trusty
+language: python
+
+python:
+    - 3.5
+    - 3.6
+    - nightly
+
+install:
+    - pip install coveralls pytest==3.6 pytest-cov pycodestyle nibabel
+
+script:
+    - export PYTHONPATH=${PYTHONPATH}:${PWD}
+    - pycodestyle *.py tests/*.py
+    - pytest --cov=accident-prediction-montreal tests
+
+after_success:
+- coveralls
