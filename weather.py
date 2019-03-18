@@ -115,7 +115,8 @@ def get_pandas_dataframe(url):
 def get_station_temp(station_id, year, month, day, hour):
     ''' Get temperature for a given station (given its station ID).
     '''
-    cache_file_path = f'data/weather/s{station_id}_{year}_{month}.h5'
+    cache_file_path = ('data/weather/s{0}_{1}_{2}.h5'
+                       .format(station_id, year, month))
 
     """if isfile("cache_file_path"):
         df = pd.read_hdf(cache_file_path, key='w')
