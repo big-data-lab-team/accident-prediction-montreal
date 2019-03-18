@@ -4,11 +4,10 @@ language: python
 python:
     - 3.5
     - 3.6
-    - nightly
 
 install:
     - pip install coveralls pytest==3.6 pytest-cov pycodestyle
-    - pip install pyspark requests beautifulsoup4 pandas numpy
+    - pip install pyspark lxml requests beautifulsoup4 pandas numpy
 
 script:
     - export PYTHONPATH=${PYTHONPATH}:${PWD}
