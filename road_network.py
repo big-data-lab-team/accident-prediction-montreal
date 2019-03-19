@@ -12,6 +12,11 @@ import pandas as pd
 from pyspark.sql.functions import col, abs, hash
 
 
+def get_road_df(spark):
+    fetch_road_network()
+    return extract_road_segments_df(spark)
+
+
 def fetch_road_network():
     if not os.path.isdir('data'):
         os.mkdir('data')
@@ -96,7 +101,7 @@ def get_road_segments_RDD(spark):
             .map(read_doc_from_zip_file))
 
 
-def extract_road_segments_DF(spark):
+def extract_road_segments_df(spark):
     if os.path.isdir('data/road-network.parquet'):
         print('Skip extraction of road network dataframe: already done,'
               ' reading from file')

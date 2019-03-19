@@ -1,6 +1,6 @@
 from accidents_montreal import fetch_accidents_montreal,\
-                               extract_accidents_montreal_dataframe
-from road_network import fetch_road_network, extract_road_segments_DF
+                               extract_accidents_montreal_df
+from road_network import fetch_road_network, extract_road_segments_df
 from weather import get_weather
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import atan2, sqrt, row_number, cos, sin, radians,\
@@ -164,13 +164,3 @@ def init_spark():
             .builder
             .appName("Road accidents prediction")
             .getOrCreate())
-
-
-# init spark
-spark = init_spark()
-
-# retrieve datasets
-fetch_road_network()
-fetch_accidents_montreal()
-accidents_df = extract_accidents_montreal_dataframe(spark)
-road_df = extract_road_segments_DF(spark)
