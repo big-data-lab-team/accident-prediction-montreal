@@ -9,12 +9,48 @@ from zipfile import ZipFile
 from io import BytesIO
 from bs4 import BeautifulSoup
 import pandas as pd
-from pyspark.sql.functions import col, abs, hash, atan2, sqrt, cos, sin, radians
+from pyspark.sql.functions import col, abs, hash, atan2, \
+                                  sqrt, cos, sin, radians
 
 
 def get_road_df(spark):
     fetch_road_network()
     return extract_road_segments_df(spark)
+
+
+def get_road_features_df(spark):
+    road_df = get_road_df(spark)
+    if os.path.isdir('data/road-features.parquet'):
+        print('Skip extracting road features: already done')
+        try:
+            return spark.read.parquet('data/road-features.parquet')
+        except:  # noqa: E722
+            pass
+    print('Extracting road features...')
+    road_features = (road_df
+                     .select('street_id', 'street_type', 'coord_lat',
+                             'coord_long')
+                     .join(road_df.select(
+                                'street_id',
+                                col('coord_lat').alias('coord2_lat'),
+                                col('coord_long').alias('coord2_long')),
+                           'street_id')
+                     .withColumn('distance_inter',
+                                 distance_intermediate_formula(
+                                    'coord_lat',
+                                    'coord_long',
+                                    'coord2_lat',
+                                    'coord2_long'))
+                     .withColumn('dist_measure', distance_measure())
+                     .select('street_id', 'street_type', 'dist_measure')
+                     .groupBy('street_id', 'street_type').max('dist_measure')
+                     .withColumn('length',
+                                 col('max(dist_measure)') * earth_diameter())
+                     .select('street_id', 'street_type', 'length'))
+
+    road_features.write.parquet('data/road-features.parquet')
+    print('Extracting road features: done')
+    return road_features
 
 
 def fetch_road_network():

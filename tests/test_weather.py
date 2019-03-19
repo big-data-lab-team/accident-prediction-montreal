@@ -100,7 +100,7 @@ def test_fetch_one_row():
              .builder
              .appName("Road accidents prediction")
              .getOrCreate())
-    df = extract_accidents_montreal_dataframe(spark)
+    df = extract_accidents_montreal_df(spark)
     first_acc = df.filter('NO_SEQ_COLL == "SPVM _ 2015 _ 18203"').collect()[0]
 
     # get weather data
