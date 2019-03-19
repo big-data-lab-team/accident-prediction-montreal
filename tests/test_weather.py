@@ -45,7 +45,7 @@ def test_weather():
                                                          .DT_ACCDN)) \
                          .withColumn("HEURE_ACCDN",
                                      extract_hour(accidents_df
-                                                         .HEURE_ACCDN)) \
+                                                  .HEURE_ACCDN)) \
                          .drop('DT_ACCDN') \
                          .replace('Non précisé', '00')
     inst_test = acc_df.limit(1).collect()[0]
@@ -74,9 +74,11 @@ def test_weather():
 
     weathers_df = pd.DataFrame(weathers, columns=cols)
     print(weathers_df.columns)
-    return # preprocess_weathers()
+    return  # preprocess_weathers()
+
 
 test_weather()
+
 
 def test_fetch_one_row():
     test_dict = {'Dew Point Temp Flag': 'M',
