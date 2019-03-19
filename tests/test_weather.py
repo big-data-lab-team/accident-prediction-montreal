@@ -29,7 +29,7 @@ cols = ['Dew Point Temp (°C)', 'Dew Point Temp Flag', 'Hmdx', 'Hmdx Flag',
 def test_weather():
     spark = init_spark()
     fetch_accidents_montreal()
-    accidents_df = extract_accidents_montreal_dataframe(spark)
+    accidents_df = extract_accidents_montreal_df(spark)
     acc_df = accidents_df.select('DT_ACCDN',
                                  'LOC_LAT',
                                  'LOC_LONG',

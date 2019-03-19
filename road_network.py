@@ -9,7 +9,7 @@ from zipfile import ZipFile
 from io import BytesIO
 from bs4 import BeautifulSoup
 import pandas as pd
-from pyspark.sql.functions import col, abs, hash
+from pyspark.sql.functions import col, abs, hash, atan2, sqrt, cos, sin, radians
 
 
 def get_road_df(spark):
@@ -124,3 +124,22 @@ def extract_road_segments_df(spark):
     road_seg_df.write.parquet('data/road-network.parquet')
     print('Extracting road network dataframe done')
     return road_seg_df
+
+
+def distance_intermediate_formula(lat1, long1, lat2, long2):
+    ''' Returns spark expression computing intermediate result
+        to compute the distance between to GPS coordinates
+        Source: https://www.movable-type.co.uk/scripts/latlong.html
+    '''
+    return (pow(sin(radians(col(lat1) - col(lat2))/2), 2)
+            + (pow(sin(radians(col(long1) - col(long2))/2), 2)
+               * cos(radians(col(lat1))) * cos(radians(col(lat2)))))
+
+
+def distance_measure():
+    return atan2(sqrt(col('distance_inter')),
+                 sqrt(1-col('distance_inter')))
+
+
+def earth_diameter():
+    return 6371 * 2 * 1000  # in meter

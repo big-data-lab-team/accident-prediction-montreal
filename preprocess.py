@@ -1,10 +1,13 @@
 from accidents_montreal import fetch_accidents_montreal,\
                                extract_accidents_montreal_df
-from road_network import fetch_road_network, extract_road_segments_df
+from road_network import fetch_road_network,\
+                         extract_road_segments_df,\
+                         distance_intermediate_formula,\
+                         distance_measure,\
+                         earth_diameter
 from weather import get_weather
 from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import atan2, sqrt, row_number, cos, sin, radians,\
-                                  col, rank, avg
+from pyspark.sql.functions import row_number, col, rank, avg
 
 
 def match_accidents_with_weather(accident_df):
@@ -30,15 +33,6 @@ def match_accidents_with_roads(road_df, accident_df):
     nb_top_road_center_preselected = 5
     max_distance_accepted = 10  # in meters
 
-    # Source: https://www.movable-type.co.uk/scripts/latlong.html
-    def distance_intermediate_formula(lat1, long1, lat2, long2):
-        return (pow(sin(radians(col(lat1) - col(lat2))/2), 2)
-                + (pow(sin(radians(col(long1) - col(long2))/2), 2)
-                * cos(radians(col(lat1))) * cos(radians(col(lat2)))))
-    distance_measure = atan2(sqrt(col('distance_inter')),
-                             sqrt(1-col('distance_inter')))
-    earth_diameter = 6371 * 2 * 1000  # in meter
-
     # Compute distance between accident and road centers to identify the
     # top nb_top_road_center_preselected closest roads
     road_centers = (road_df
@@ -57,7 +51,8 @@ def match_accidents_with_roads(road_df, accident_df):
                                                         'LOC_LONG',
                                                         'center_lat',
                                                         'center_long'))
-                             .withColumn('distance_measure', distance_measure)
+                             .withColumn('distance_measure',
+                                         distance_measure())
                              .select('ACCIDENT_ID', 'street_id',
                                      'distance_measure', 'LOC_LAT', 'LOC_LONG',
                                      rank().over(accident_window)
@@ -77,7 +72,7 @@ def match_accidents_with_roads(road_df, accident_df):
                                                               'coord_lat',
                                                               'coord_long'))
                                    .withColumn('distance_measure',
-                                               distance_measure)
+                                               distance_measure())
                                    .select('ACCIDENT_ID', 'LOC_LAT',
                                            'LOC_LONG', 'coord_lat',
                                            'coord_long', 'street_id',
@@ -89,7 +84,7 @@ def match_accidents_with_roads(road_df, accident_df):
                                    .filter(col('distance_rank') == 1)
                                    .withColumn('distance',
                                                col('distance_measure')
-                                               * earth_diameter)
+                                               * earth_diameter())
                                    .drop('distance_rank', 'distance_measure',
                                          'LOC_LAT', 'LOC_LONG', 'coord_lat',
                                          'coord_long')
@@ -145,7 +140,7 @@ def match_accidents_with_roads(road_df, accident_df):
                                                       'LOC_LONG',
                                                       'coord_lat',
                                                       'coord_long'))
-         .withColumn('distance_measure', distance_measure)
+         .withColumn('distance_measure', distance_measure())
          .select('ACCIDENT_ID', 'street_id', 'LOC_LAT', 'LOC_LONG',
                  'coord_lat', 'coord_long',
                  row_number().over(accident_window).alias('distance_rank'))
