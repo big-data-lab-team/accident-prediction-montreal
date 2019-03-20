@@ -10,7 +10,9 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 import pandas as pd
 from pyspark.sql.functions import col, abs, hash, atan2, \
-                                  sqrt, cos, sin, radians
+                                  sqrt, cos, sin, radians, \
+                                  udf
+from pyspark.sql.types import StringType
 
 
 def get_road_df(spark):
@@ -20,16 +22,19 @@ def get_road_df(spark):
 
 def get_road_features_df(spark):
     road_df = get_road_df(spark)
+
     if os.path.isdir('data/road-features.parquet'):
         print('Skip extracting road features: already done')
         try:
             return spark.read.parquet('data/road-features.parquet')
         except:  # noqa: E722
             pass
+
     print('Extracting road features...')
+    assign_street_type_udf = udf(assign_street_type, StringType())
     road_features = (road_df
-                     .select('street_id', 'street_type', 'coord_lat',
-                             'coord_long')
+                     .select('street_id', 'street_type', 'street_name',
+                             'coord_lat', 'coord_long')
                      .join(road_df.select(
                                 'street_id',
                                 col('coord_lat').alias('coord2_lat'),
@@ -42,11 +47,19 @@ def get_road_features_df(spark):
                                     'coord2_lat',
                                     'coord2_long'))
                      .withColumn('dist_measure', distance_measure())
-                     .select('street_id', 'street_type', 'dist_measure')
-                     .groupBy('street_id', 'street_type').max('dist_measure')
+                     .select('street_id', 'street_type', 'street_name',
+                             'dist_measure')
+                     .groupBy('street_id', 'street_type', 'street_name')
+                     .max('dist_measure')
                      .withColumn('length',
                                  col('max(dist_measure)') * earth_diameter())
-                     .select('street_id', 'street_type', 'length'))
+                     .select('street_id',
+                             col('street_type').alias('street_level'),
+                             'street_name',
+                             'length')
+                     .withColumn('street_type',
+                                 assign_street_type_udf(col('street_name')))
+                     .drop('street_name'))
 
     road_features.write.parquet('data/road-features.parquet')
     print('Extracting road features: done')
@@ -179,3 +192,44 @@ def distance_measure():
 
 def earth_diameter():
     return 6371 * 2 * 1000  # in meter
+
+
+def assign_street_type(street_name):
+    possible_keywords = street_name.split(' ')[0:1]
+    possible_keywords = [pk.lower() for pk in possible_keywords]
+    assignation = {
+      'allée': ['allée'],
+      'autoroute': ['autoroute'],
+      'avenue': ['avenue'],
+      'boulevard': ['boulevard'],
+      'carré': ['carré'],
+      'square': ['square'],
+      'carref.': ['carref.'],
+      'chemin': ['chemin'],
+      'circle': ['circle', 'cercle'],
+      'côte': ['côte'],
+      'cours': ['cours'],
+      'court': ['court'],
+      'crescent': ['crescent', 'croissant'],
+      'drive': ['drive'],
+      'esplanade': ['esplanade'],
+      'island': ['Île'],
+      'impasse': ['impasse'],
+      'lane': ['lane'],
+      'lieu': ['lieu'],
+      'montée': ['montée'],
+      'park': ['parc', 'park'],
+      'passage': ['passage'],
+      'place': ['place'],
+      'pont': ['pont'],
+      'promenade': ['promenade'],
+      'rang': ['rang'],
+      'road': ['road', 'route'],
+      'ruelle': ['ruelle'],
+      'street': ['street', 'rue'],
+      'terrasse': ['terrasse']
+    }
+    for street_type in assignation:
+        for keyword in assignation[street_type]:
+            if keyword in possible_keywords:
+                return street_type
