@@ -257,8 +257,8 @@ def preprocess_weathers(weathers):
 
 def clean_new_dict(associated_dict):
     for key in list(associated_dict.keys()):
-        if isinstance(associated_dict[key], float)
-        and math.isnan(associated_dict[key]):
+        if isinstance(associated_dict[key],
+                      float) and math.isnan(associated_dict[key]):
             associated_dict[key] = None
 
     # drop unuseful columns
