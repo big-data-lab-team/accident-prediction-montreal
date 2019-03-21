@@ -129,24 +129,49 @@ def preprocess_weathers(weathers):
                              get_temperature(weathers)]))))
 
 
+def clean_new_dict(associated_dict):
+    # drop unuseful columns
+    bad_keys = [key for key in list(associated_dict.keys())
+                if key not in COLUMNS]
+    for key in bad_keys:
+        del associated_dict[key]
+
+    # add missing columns
+    missing_keys = [key for key in COLUMNS
+                    if key not in list(associated_dict.keys())]
+    for key in missing_keys:
+        associated_dict[key] = ''
+
+    return associated_dict
+
+
 def get_weather(lat, long, year, month, day, hour):
     ''' Get the weather at a given location at a given time.
     '''
     stations = get_stations(lat, long, year, month, day)
     weathers = list()
     for station in stations:
-        s = get_station_temp(station[0], year, month, day, hour)
-        if all(i == np.nan for i in s):  # empty answer
+        print('Station ', station[0], '...')
+        s = get_station_temp(station[0],
+                             int(inst_test.year),
+                             int(inst_test.month),
+                             int(inst_test.day),
+                             int(inst_test.HEURE_ACCDN))
+
+        if all(i == np.nan for i in s):
             continue
         else:
+            print('data found!')
             s.loc["station_denom"] = station[1]
-            weathers.append(s)
-
-    weathers_df = pd.DataFrame(weathers, columns=COLUMNS, dtype=object)
+            associated_dict = s.to_dict()
+            associated_dict = clean_new_dict(associated_dict)
+            weathers.append(associated_dict)
 
     if len(weathers) == 0:
         return np.nan
     else:
+        print('Creating dataframe from collected data')
+        weathers_df = pd.DataFrame(weathers, dtype=object)
         for num_col in NUMERIC_COLS:
             weathers_df[num_col] = pd.to_numeric(weathers_df[num_col],
                                                  errors='coerce')

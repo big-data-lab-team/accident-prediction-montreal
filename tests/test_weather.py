@@ -90,7 +90,7 @@ def test_weather():
                             int(inst_test.month),
                             int(inst_test.day))
     print('Found ', len(stations), ' stations!')
-    weathers = list()
+    weathers = list()  # list of dictionaries corresponding to stations data
     for station in stations:
         print('Station ', station[0], '...')
         s = get_station_temp(station[0],
@@ -98,20 +98,39 @@ def test_weather():
                              int(inst_test.month),
                              int(inst_test.day),
                              int(inst_test.HEURE_ACCDN))
+
         if all(i == np.nan for i in s):
             print('empty answer')
             continue
         else:
             print('data found!')
             s.loc["station_denom"] = station[1]
-            weathers.append(s)
+            associated_dict = s.to_dict()
+            associated_dict = clean_new_dict(associated_dict)
+            weathers.append(associated_dict)
 
     print('Creating dataframe from collected data')
-    weathers_df = pd.DataFrame(weathers, columns=COLUMNS, dtype=object)
+    weathers_df = pd.DataFrame(weathers, dtype=object)
     for num_col in NUMERIC_COLS:
         weathers_df[num_col] = pd.to_numeric(weathers_df[num_col],
                                              errors='coerce')
     return weathers_df
+
+
+def clean_new_dict(associated_dict):
+    # drop unuseful columns
+    bad_keys = [key for key in list(associated_dict.keys())
+                if key not in COLUMNS]
+    for key in bad_keys:
+        del associated_dict[key]
+
+    # add missing columns
+    missing_keys = [key for key in COLUMNS
+                    if key not in list(associated_dict.keys())]
+    for key in missing_keys:
+        associated_dict[key] = ''
+
+    return associated_dict
 
 
 def test_get_weather_and_preprocess():
