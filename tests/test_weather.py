@@ -25,6 +25,7 @@ cols = ['Dew Point Temp (°C)', 'Dew Point Temp Flag', 'Hmdx', 'Hmdx Flag',
         'Weather', 'Wind Chill', 'Wind Chill Flag', 'Wind Dir (10s deg)',
         'Wind Dir Flag', 'Wind Spd (km/h)', 'Wind Spd Flag']
 
+
 def test_preprocess_weathers(weathers):
     ''' From a dataframe containing the weather information from several
     stations, return a pyspark dataframe Row containing the averages/weighted
@@ -32,8 +33,9 @@ def test_preprocess_weathers(weathers):
     '''
 
     # compute mean of numeric columns
-    cols_to_mean = [col for col in NUMERIC_COLS if not col in ['Temp (°C)',
-                        'station_denom']]
+    cols_to_mean = [col for col in NUMERIC_COLS
+                    if col not in ['Temp (°C)',
+                                   'station_denom']]
     means = weathers.loc[:, NUMERIC_COLS].mean()
 
     # use majority vote on non numeric columns
@@ -42,14 +44,15 @@ def test_preprocess_weathers(weathers):
                                        axis=0))
 
     row = (Row(**dict(zip(non_num_weathers.index.values.tolist()
-                           + means.index.values.tolist()
-                           + ['Weather', 'Temp (°C)'],
-                           non_num_weathers.values.tolist()
-                           + means.values.tolist()
-                           + [get_general_weather(weathers),
-                              get_temperature(weathers)]))))
+                          + means.index.values.tolist()
+                          + ['Weather', 'Temp (°C)'],
+                          non_num_weathers.values.tolist()
+                          + means.values.tolist()
+                          + [get_general_weather(weathers),
+                             get_temperature(weathers)]))))
     print(row)
     return row
+
 
 def test_weather():
     print('Initialization...')
@@ -106,7 +109,8 @@ def test_weather():
     print('Creating dataframe from collected data')
     weathers_df = pd.DataFrame(weathers, columns=COLUMNS, dtype=object)
     for num_col in NUMERIC_COLS:
-        weathers_df[num_col] = pd.to_numeric(weathers_df[num_col], errors='coerce')
+        weathers_df[num_col] = pd.to_numeric(weathers_df[num_col],
+                                             errors='coerce')
     return weathers_df
 
 
@@ -114,8 +118,6 @@ def test_get_weather_and_preprocess():
     weathers_df = test_weather()
     test_preprocess_weathers(weathers_df)
     return
-
-test_get_weather_and_preprocess()
 
 
 def test_fetch_one_row():

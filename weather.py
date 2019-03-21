@@ -52,6 +52,7 @@ NON_NUMERIC_COLS = ['Temp Flag',
                     'Hmdx Flag',
                     'Wind Chill Flag']
 
+
 def extract_date_val(i):
     return udf(lambda val: val.split('/')[i])
 
@@ -109,9 +110,10 @@ def preprocess_weathers(weathers):
     averages of the retrieved data.
     '''
     # compute mean of numeric columns
-    cols_to_mean = [col for col in NUMERIC_COLS if not col in ['Temp (°C)',
-                        'station_denom']]
-    means = weathers.loc[:, NUMERIC_COLS].mean()
+    cols_to_mean = [col for col in NUMERIC_COLS
+                    if col not in ['Temp (°C)',
+                                   'station_denom']]
+    means = weathers.loc[:, cols_to_mean].mean()
 
     # use majority vote on non numeric columns
     non_num_weathers = (weathers.loc[:, NON_NUMERIC_COLS]
@@ -119,12 +121,12 @@ def preprocess_weathers(weathers):
                                        axis=0))
 
     row = (Row(**dict(zip(non_num_weathers.index.values.tolist()
-                           + means.index.values.tolist()
-                           + ['Weather', 'Temp (°C)'],
-                           non_num_weathers.values.tolist()
-                           + means.values.tolist()
-                           + [get_general_weather(weathers),
-                              get_temperature(weathers)]))))
+                          + means.index.values.tolist()
+                          + ['Weather', 'Temp (°C)'],
+                          non_num_weathers.values.tolist()
+                          + means.values.tolist()
+                          + [get_general_weather(weathers),
+                             get_temperature(weathers)]))))
 
 
 def get_weather(lat, long, year, month, day, hour):
@@ -146,7 +148,8 @@ def get_weather(lat, long, year, month, day, hour):
         return np.nan
     else:
         for num_col in NUMERIC_COLS:
-            weathers_df[num_col] = pd.to_numeric(weathers_df[num_col], errors='coerce')
+            weathers_df[num_col] = pd.to_numeric(weathers_df[num_col],
+                                                 errors='coerce')
         return preprocess_weathers(weathers_df)
 
 
