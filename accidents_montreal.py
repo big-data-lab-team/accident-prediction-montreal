@@ -11,6 +11,11 @@ from pyspark.sql.types import StringType, BooleanType, IntegerType, \
 from pyspark.sql.functions import monotonically_increasing_id
 
 
+def get_accident_df(spark):
+    fetch_accidents_montreal()
+    return extract_accidents_montreal_df(spark)
+
+
 def fetch_accidents_montreal():
     if not os.path.isdir('data'):
         os.mkdir('data')
@@ -35,7 +40,7 @@ def fetch_accidents_montreal():
         print('Unable to find montreal accidents dataset.')
 
 
-def extract_accidents_montreal_dataframe(spark):
+def extract_accidents_montreal_df(spark):
     if os.path.isdir('data/accidents-montreal.parquet'):
         print('Skip extraction of accidents montreal dataframe:'
               ' already done, reading from file')

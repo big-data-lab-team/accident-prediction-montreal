@@ -57,9 +57,7 @@ def test_weather():
 
     print('Fecthing accidents dataset...')
     fetch_accidents_montreal()
-    accidents_df = extract_accidents_montreal_dataframe(spark)
-
-    print('Extract useful columns...')
+    accidents_df = extract_accidents_montreal_df(spark)
     acc_df = accidents_df.select('DT_ACCDN',
                                  'LOC_LAT',
                                  'LOC_LONG',
@@ -75,7 +73,7 @@ def test_weather():
                                                          .DT_ACCDN)) \
                          .withColumn("HEURE_ACCDN",
                                      extract_hour(accidents_df
-                                                         .HEURE_ACCDN)) \
+                                                  .HEURE_ACCDN)) \
                          .drop('DT_ACCDN') \
                          .replace('Non précisé', '00')
 
@@ -109,7 +107,7 @@ def test_weather():
     weathers_df = pd.DataFrame(weathers, columns=COLUMNS, dtype=object)
     for num_col in NUMERIC_COLS:
         weathers_df[num_col] = pd.to_numeric(weathers_df[num_col], errors='coerce')
-    return weathers_df 
+    return weathers_df
 
 
 def test_get_weather_and_preprocess():
@@ -118,6 +116,7 @@ def test_get_weather_and_preprocess():
     return
 
 test_get_weather_and_preprocess()
+
 
 def test_fetch_one_row():
     test_dict = {'Dew Point Temp Flag': 'M',
@@ -139,7 +138,7 @@ def test_fetch_one_row():
              .builder
              .appName("Road accidents prediction")
              .getOrCreate())
-    df = extract_accidents_montreal_dataframe(spark)
+    df = extract_accidents_montreal_df(spark)
     first_acc = df.filter('NO_SEQ_COLL == "SPVM _ 2015 _ 18203"').collect()[0]
 
     # get weather data
