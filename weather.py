@@ -10,6 +10,48 @@ from pyspark.sql.functions import udf
 import numpy as np
 
 
+COLUMNS = ['Temp (°C)',
+           'Temp Flag',
+           'Dew Point Temp (°C)',
+           'Dew Point Temp Flag',
+           'Rel Hum (%)',
+           'Rel Hum Flag',
+           'Wind Dir (10s deg)',
+           'Wind Dir Flag',
+           'Wind Spd (km/h)',
+           'Wind Spd Flag',
+           'Visibility (km)',
+           'Visibility Flag',
+           'Stn Press (kPa)',
+           'Stn Press Flag',
+           'Hmdx',
+           'Hmdx Flag',
+           'Wind Chill',
+           'Wind Chill Flag',
+           'Weather',
+           'station_denom']
+
+NUMERIC_COLS = ['Dew Point Temp (°C)',
+                'Rel Hum (%)',
+                'Wind Dir (10s deg)',
+                'Wind Spd (km/h)',
+                'Visibility (km)',
+                'Stn Press (kPa)',
+                'Hmdx',
+                'Wind Chill',
+                'Temp (°C)',
+                'station_denom']
+
+NON_NUMERIC_COLS = ['Temp Flag',
+                    'Dew Point Temp Flag',
+                    'Rel Hum Flag',
+                    'Wind Dir Flag',
+                    'Wind Spd Flag',
+                    'Visibility Flag',
+                    'Stn Press Flag',
+                    'Hmdx Flag',
+                    'Wind Chill Flag']
+
 def extract_date_val(i):
     return udf(lambda val: val.split('/')[i])
 
@@ -66,30 +108,17 @@ def preprocess_weathers(weathers):
     stations, return a pyspark dataframe Row containing the averages/weighted
     averages of the retrieved data.
     '''
-    print(list(weathers.dtypes.index))
-    print(weathers.dtypes)
-
     # compute mean of numeric columns
-    numeric_cols = [col for col in list(weathers.dtypes.index)
-                    if (weathers.dtypes[col] == 'int64'
-                    or weathers.dtypes[col] == 'float64')
-                    and col != 'station_denom'
-                    and col != 'Temp (°C)']
-    means = weathers.loc[:, numeric_cols].mean()
+    cols_to_mean = [col for col in NUMERIC_COLS if not col in ['Temp (°C)',
+                        'station_denom']]
+    means = weathers.loc[:, NUMERIC_COLS].mean()
 
     # use majority vote on non numeric columns
-    non_numeric_cols = ([col for col in list(weathers.dtypes.index)
-                        if col not in numeric_cols
-                        + ['Weather', 'station_denom', 'Temp (°C)']])
-    non_num_weathers = (weathers.loc[:, non_numeric_cols]
+    non_num_weathers = (weathers.loc[:, NON_NUMERIC_COLS]
                                 .apply(lambda col: get_majority_vote(col),
                                        axis=0))
 
-    print('numeric:', numeric_cols)
-    print('\n')
-    print('non numeric:', non_numeric_cols)
-
-    return (Row(**dict(zip(non_num_weathers.index.values.tolist()
+    row = (Row(**dict(zip(non_num_weathers.index.values.tolist()
                            + means.index.values.tolist()
                            + ['Weather', 'Temp (°C)'],
                            non_num_weathers.values.tolist()
@@ -103,22 +132,22 @@ def get_weather(lat, long, year, month, day, hour):
     '''
     stations = get_stations(lat, long, year, month, day)
     weathers = list()
-    cols = list()
     for station in stations:
         s = get_station_temp(station[0], year, month, day, hour)
-        if all(i == np.nan for i in s):
+        if all(i == np.nan for i in s):  # empty answer
             continue
         else:
             s.loc["station_denom"] = station[1]
             weathers.append(s)
-            if len(cols) == 0:
-                cols = s.index.values.tolist()
 
-    print(weathers)
+    weathers_df = pd.DataFrame(weathers, columns=COLUMNS, dtype=object)
+
     if len(weathers) == 0:
         return np.nan
     else:
-        return preprocess_weathers(pd.DataFrame(weathers, columns=cols))
+        for num_col in NUMERIC_COLS:
+            weathers_df[num_col] = pd.to_numeric(weathers_df[num_col], errors='coerce')
+        return preprocess_weathers(weathers_df)
 
 
 def get_pandas_dataframe(url):

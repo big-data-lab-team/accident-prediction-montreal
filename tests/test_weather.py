@@ -25,11 +25,41 @@ cols = ['Dew Point Temp (°C)', 'Dew Point Temp Flag', 'Hmdx', 'Hmdx Flag',
         'Weather', 'Wind Chill', 'Wind Chill Flag', 'Wind Dir (10s deg)',
         'Wind Dir Flag', 'Wind Spd (km/h)', 'Wind Spd Flag']
 
+def test_preprocess_weathers(weathers):
+    ''' From a dataframe containing the weather information from several
+    stations, return a pyspark dataframe Row containing the averages/weighted
+    averages of the retrieved data.
+    '''
+
+    # compute mean of numeric columns
+    cols_to_mean = [col for col in NUMERIC_COLS if not col in ['Temp (°C)',
+                        'station_denom']]
+    means = weathers.loc[:, NUMERIC_COLS].mean()
+
+    # use majority vote on non numeric columns
+    non_num_weathers = (weathers.loc[:, NON_NUMERIC_COLS]
+                                .apply(lambda col: get_majority_vote(col),
+                                       axis=0))
+
+    row = (Row(**dict(zip(non_num_weathers.index.values.tolist()
+                           + means.index.values.tolist()
+                           + ['Weather', 'Temp (°C)'],
+                           non_num_weathers.values.tolist()
+                           + means.values.tolist()
+                           + [get_general_weather(weathers),
+                              get_temperature(weathers)]))))
+    print(row)
+    return row
 
 def test_weather():
+    print('Initialization...')
     spark = init_spark()
+
+    print('Fecthing accidents dataset...')
     fetch_accidents_montreal()
     accidents_df = extract_accidents_montreal_dataframe(spark)
+
+    print('Extract useful columns...')
     acc_df = accidents_df.select('DT_ACCDN',
                                  'LOC_LAT',
                                  'LOC_LONG',
@@ -48,35 +78,46 @@ def test_weather():
                                                          .HEURE_ACCDN)) \
                          .drop('DT_ACCDN') \
                          .replace('Non précisé', '00')
-    inst_test = acc_df.limit(1).collect()[0]
-    print(inst_test)
 
+    print('Taking one instance...')
+    inst_test = acc_df.limit(1).collect()[0]
+
+    print('Collecting stations for that instance...')
     stations = get_stations(int(inst_test.LOC_LAT),
                             int(inst_test.LOC_LONG),
                             int(inst_test.year),
                             int(inst_test.month),
                             int(inst_test.day))
+    print('Found ', len(stations), ' stations!')
     weathers = list()
-    cols = list()
     for station in stations:
+        print('Station ', station[0], '...')
         s = get_station_temp(station[0],
                              int(inst_test.year),
                              int(inst_test.month),
                              int(inst_test.day),
                              int(inst_test.HEURE_ACCDN))
         if all(i == np.nan for i in s):
+            print('empty answer')
             continue
         else:
+            print('data found!')
             s.loc["station_denom"] = station[1]
             weathers.append(s)
-            if len(cols) == 0:
-                cols = s.index.values.tolist()
 
-    weathers_df = pd.DataFrame(weathers, columns=cols)
-    print(weathers_df.columns)
-    return # preprocess_weathers()
+    print('Creating dataframe from collected data')
+    weathers_df = pd.DataFrame(weathers, columns=COLUMNS, dtype=object)
+    for num_col in NUMERIC_COLS:
+        weathers_df[num_col] = pd.to_numeric(weathers_df[num_col], errors='coerce')
+    return weathers_df 
 
-test_weather()
+
+def test_get_weather_and_preprocess():
+    weathers_df = test_weather()
+    test_preprocess_weathers(weathers_df)
+    return
+
+test_get_weather_and_preprocess()
 
 def test_fetch_one_row():
     test_dict = {'Dew Point Temp Flag': 'M',
