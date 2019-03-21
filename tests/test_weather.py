@@ -36,7 +36,7 @@ def test_preprocess_weathers(weathers):
     cols_to_mean = [col for col in NUMERIC_COLS
                     if col not in ['Temp (°C)',
                                    'station_denom']]
-    means = weathers.loc[:, NUMERIC_COLS].mean()
+    means = weathers.loc[:, cols_to_mean].mean()
 
     # use majority vote on non numeric columns
     non_num_weathers = (weathers.loc[:, NON_NUMERIC_COLS]
