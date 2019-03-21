@@ -5,13 +5,17 @@ from os.path import isdir, isfile
 from requests import get
 from io import StringIO
 from pyspark.sql import Row
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf
 import numpy as np
 from pyspark.sql.types import *
 import time
 import shutil
 import math
-
+import os
+from accidents_montreal import fetch_accidents_montreal,\
+                               extract_accidents_montreal_df
+from road_network import fetch_road_network, extract_road_segments_df
 
 COLUMNS = ['Temp (°C)',
            'Temp Flag',
@@ -126,37 +130,6 @@ def preprocess_accidents(accidents_df):
                                     extract_hour(accidents_df.HEURE_ACCDN))
                         .drop('DT_ACCDN')
                         .replace('Non précisé', '00'))
-
-
-def fetch_weather_dataset(replace=True):
-    ''' Main function which fetch weather data for each row of
-    the accident dataset and write the result as parquet data.
-    '''
-
-    # init spark
-    spark = init_spark()
-    sc = spark.sparkContext
-
-    # retrieve accident dataset
-    fetch_accidents_montreal()
-    accidents_df = extract_accidents_montreal_df(spark)
-    clean_acc_df = preprocess_accidents(accidents_df)
-
-    # prepare backup parameters
-    backup_file = 'data/weather_backup.parquet'
-    if os.path.isdir(backup_file):
-        shutil.rmtree(backup_file)
-
-    df_schema = get_schema()
-    t = time.time()
-    v = (spark.createDataFrame(clean_acc_df
-         .sample(0.5)
-         .rdd
-         .map(lambda row: get_weather_(row)), df_schema)
-         .write.parquet(backup_file))
-    t = time.time() - t
-    print('Done. Processing time:', t)
-    return
 
 
 def get_weather_(row):
@@ -454,3 +427,37 @@ def skip_header(file):
     while n_emptyLineMet < 2:
         if file.readline() == '\n':
             n_emptyLineMet += 1
+
+
+def fetch_weather_dataset(replace=True):
+    ''' Main function which fetch weather data for each row of
+    the accident dataset and write the result as parquet data.
+    '''
+
+    # init spark
+    spark = init_spark()
+    sc = spark.sparkContext
+
+    # retrieve accident dataset
+    fetch_accidents_montreal()
+    accidents_df = extract_accidents_montreal_df(spark)
+    clean_acc_df = preprocess_accidents(accidents_df)
+
+    # prepare backup parameters
+    backup_file = 'data/weather_backup.parquet'
+    if os.path.isdir(backup_file):
+        shutil.rmtree(backup_file)
+
+    df_schema = get_schema()
+    t = time.time()
+    v = (spark.createDataFrame(clean_acc_df
+         .sample(0.5)
+         .rdd
+         .map(lambda row: get_weather_(row)), df_schema)
+         .write.parquet(backup_file))
+    t = time.time() - t
+    print('Done. Processing time:', t)
+    return
+
+
+fetch_weather_dataset()
