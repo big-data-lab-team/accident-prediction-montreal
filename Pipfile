@@ -11,7 +11,6 @@ scipy = "*"
 beautifulsoup4 = "*"
 dask = {extras = ["bag"],version = "*"}
 pandas = "*"
-pyarrow = "*"
 ipykernel = "*"
 pyspark = "*"
 tables = "*"
@@ -19,6 +18,7 @@ pycodestyle = "*"
 requests = "*"
 pytest = "*"
 coverage = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.7"

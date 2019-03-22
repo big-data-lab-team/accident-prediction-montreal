@@ -18,28 +18,7 @@ from accidents_montreal import fetch_accidents_montreal,\
                                extract_accidents_montreal_df
 from road_network import fetch_road_network, extract_road_segments_df
 
-COLUMNS = ['Temp (°C)',
-           'Temp Flag',
-           'Dew Point Temp (°C)',
-           'Dew Point Temp Flag',
-           'Rel Hum (%)',
-           'Rel Hum Flag',
-           'Wind Dir (10s deg)',
-           'Wind Dir Flag',
-           'Wind Spd (km/h)',
-           'Wind Spd Flag',
-           'Visibility (km)',
-           'Visibility Flag',
-           'Stn Press (kPa)',
-           'Stn Press Flag',
-           'Hmdx',
-           'Hmdx Flag',
-           'Wind Chill',
-           'Wind Chill Flag',
-           'Weather']
-
-
-NUMERIC_COLS = ['Dew Point Temp (°C)',
+COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Rel Hum (%)',
                 'Wind Dir (10s deg)',
                 'Wind Spd (km/h)',
@@ -48,34 +27,13 @@ NUMERIC_COLS = ['Dew Point Temp (°C)',
                 'Hmdx',
                 'Wind Chill',
                 'Temp (°C)']
-
-COLUMNS_USED = NUMERIC_COLS
-
-
-NON_NUMERIC_COLS = ['Temp Flag',
-                    'Dew Point Temp Flag',
-                    'Rel Hum Flag',
-                    'Wind Dir Flag',
-                    'Wind Spd Flag',
-                    'Visibility Flag',
-                    'Stn Press Flag',
-                    'Hmdx Flag',
-                    'Wind Chill Flag']
-
+]
 
 UNAUTH_CHARS = [' ', ',', ';', '{', '}', '(', ')', '\n', '\t', '=']
 
 
-NB_ELEMENTS_TREATED = 0.0
-
-
 def extract_date_val(i):
     return udf(lambda val: val.split('/')[i])
-
-
-@udf
-def extract_hour(val):
-    return val.split('-')[0].split(':')[0]
 
 
 def init_spark():
@@ -91,13 +49,13 @@ def get_schema():
     rows created from the data that has been fetch.
     '''
     col_used = [del_unauthorized_char(c) for c in COLUMNS_USED]
-    return StructType([StructField(c, FloatType(), True) for c in col_used])
+    return StructType([StructField("ACCIDENT_ID", LongType(), False)] + [StructField(c, FloatType(), True) for c in col_used])
 
 
 def preprocess_accidents(accidents_df):
     ''' Select/build columns of interest and format their names.
     '''
-    return (accidents_df.select('DT_ACCDN', 'LOC_LAT',
+    return (accidents_df.select('ACCIDENT_ID', 'DT_ACCDN', 'LOC_LAT',
                                 'LOC_LONG', 'HEURE_ACCDN')
                         .withColumn("year",
                                     extract_date_val(0)(accidents_df.DT_ACCDN))
@@ -112,58 +70,14 @@ def preprocess_accidents(accidents_df):
 
 
 def get_weather_(row):
-    try:
-        new_row = get_weather(row.LOC_LAT,
-                            row.LOC_LONG,
-                            row.year,
-                            row.month,
-                            row.day,
-                            row.HEURE_ACCDN)
-
-        global NB_ELEMENTS_TREATED
-        NB_ELEMENTS_TREATED += 1
-        print('progress: ', NB_ELEMENTS_TREATED*100/149886, '%')
-        return new_row
-    except:
-        import pickle
-        pickle.dump(new_row, '/home/hantoine/errrow')
-
-
-def get_general_weather(weathers):
-    ''' Get general weather information from multiple stations.
-    '''
-    print(weathers.loc[:, 'Weather'])
-    result = (weathers.loc[:, 'Weather']
-                      .dropna())
-
-    print('after drop na : ', result)
-    result = ','.join(result.drop_duplicates()
-                      .values
-                      .tolist())
-
-    if len(result) == 0:
-        return [None]
-    else:
-        return result
-
-
-def compute_temp(row):
-    ''' Compute numerator and denominator for weighted average of temperature.
-    '''
-    return pd.Series([row[0] / row[1], 1 / row[1]])
-
-
-def get_temperature(weathers):
-    ''' Get weighted average temperature from multiple stations.
-    '''
-    temperatures = (weathers[['Temp (°C)', 'station_denom']]
-                    .dropna()
-                    .apply(lambda row: compute_temp(row), axis=1))
-
-    if len(temperatures) >= 2:
-        return temperatures[0].sum() / temperatures[1].sum()
-    else:
-        return None
+    new_row = get_weather(row.ACCIDENT_ID,
+                        row.LOC_LAT,
+                        row.LOC_LONG,
+                        row.year,
+                        row.month,
+                        row.day,
+                        row.HEURE_ACCDN)
+    return new_row
 
 
 def del_unauthorized_char(a_string):
@@ -174,55 +88,9 @@ def del_unauthorized_char(a_string):
     return a_string
 
 
-def clean_new_dict(associated_dict):
-    for key in list(associated_dict.keys()):
-        if isinstance(associated_dict[key],
-                      float) and math.isnan(associated_dict[key]):
-            associated_dict[key] = None
-
-    # drop unuseful columns
-    bad_keys = [key for key in list(associated_dict.keys())
-                if key not in COLUMNS]
-    print('bad keys', bad_keys)
-    for key in bad_keys:
-        del associated_dict[key]
-
-    # add missing columns
-    missing_keys = [key for key in COLUMNS
-                    if key not in list(associated_dict.keys())]
-    print('missing_keys', missing_keys)
-    for key in missing_keys:
-        associated_dict[key] = None
-
-    if associated_dict['Weather'] == '':
-        associated_dict['Weather'] = None
-
-    print('clean dict', associated_dict)
-    return associated_dict
-
-
-def empty_row():
-    print('get index')
-    indexes = [del_unauthorized_char(s) for s in COLUMNS
-               if not s == 'station_denom']
-    print('get values')
-    values = len(NON_NUMERIC_COLS) * [None]  \
-        + len(NUMERIC_COLS) * [None] + [[None]]
-    print('return row')
-    return Row(**dict(zip(indexes, values)))
-
-
-def get_weather(lat, long, year, month, day, hour):
+def get_weather(id, lat, long, year, month, day, hour):
     ''' Get the weather at a given location at a given time.
     '''
-    print('input:', lat, long, year, month, day, hour)
-    print('input types:', type(lat), type(long), type(year), type(month),
-          type(day), type(hour))
-    
-    """input_ = [None if (isinstance(x, float) and math.isnan(x)) else int(x)
-              for x in [lat, long, year, month, day, hour]]
-    if any(i is None for i in input_[:len(input_)]):  # all but hour
-        return empty_row()"""
 
     try:
         stations = get_stations(lat, long, year, month, hour)
@@ -231,17 +99,15 @@ def get_weather(lat, long, year, month, day, hour):
         stations=[]
 
     stations_weathers = list()
-    print(stations)
     for station in stations:
-        print('Station ', station[0], '...')
         s = get_station_weather(station[0], year, month, day, hour)
-        print('data found!')
         s.loc["station_distance"] = station[1]
         stations_weathers.append(s.to_dict())
 
-    print('build dataframe')
     if len(stations_weathers) == 0:
-        stations_weathers.append(pd.Series([np.nan]*len(COLUMNS_USED), index=COLUMNS_USED))
+        stations_weathers.append(
+            pd.Series([np.nan]*(len(COLUMNS_USED)+1))
+            .reindex(COLUMNS_USED+['station_distance']))
 
     weathers_df = pd.DataFrame(stations_weathers)
     weathers_df = weathers_df.dropna(how='all', subset=weathers_df.columns[:-1])
@@ -254,17 +120,14 @@ def get_weather(lat, long, year, month, day, hour):
         return float(t[0].sum() / t[1].sum())
 
     dict_weather = {c: weighted_average(weathers_df, c) for c in weathers_df.columns[:-1]}
-    print('preprocess')
-    print(dict_weather)
+    dict_weather['ACCIDENT_ID'] = id
     return Row(**dict_weather)
 
 
 def get_pandas_dataframe(url):
     ''' Get pandas dataframe from retrieved csv file using URL argument.
     '''
-    # print('Fetching...')
     csvfile = get(url).text
-    # print('Done. Extracting data...')
     df = None
     with StringIO(csvfile) as csvfile:
         skip_header(csvfile)
@@ -277,19 +140,24 @@ def get_pandas_dataframe(url):
 def get_station_weather(station_id, year, month, day, hour):
     ''' Get temperature for a given station (given its station ID).
     '''
-    cache_file_path = f'data/weather/s{station_id}_{year}_{month}.h5'
+    cache_file_path = f'data/weather/s{station_id}_{year}_{month}.parquet'
 
-    url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
-           f'format=csv&stationID={station_id}&Year={year}'
-           f'&Month={month}&Day={day}&'
-           f'timeframe=1&submit=Download+Data')
-    print(url)
-    try:
-        df = get_pandas_dataframe(url)
-    except Exception as e:
-        print('Unable to fetch:', url)
-        print(e)
-        return pd.Series([np.nan]*len(COLUMNS_USED), index=COLUMNS_USED)
+    if isfile(cache_file_path):
+        df = pd.read_parquet(cache_file_path)
+    else:
+        url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
+               f'format=csv&stationID={station_id}&Year={year}'
+               f'&Month={month}&Day={day}&'
+               f'timeframe=1&submit=Download+Data')
+        try:
+            df = get_pandas_dataframe(url)
+            if not isdir('data/weather/'):
+                mkdir('data/weather/')
+            df.to_parquet(cache_file_path)
+        except Exception as e:
+            print('Unable to fetch:', url)
+            print(e)
+            return pd.Series([np.nan]*len(COLUMNS_USED), index=COLUMNS_USED)
 
     return df.loc[f'{year}-{month}-{day} {hour}:00'].reindex(COLUMNS_USED)
 
@@ -313,23 +181,6 @@ def get_stations(lat, long, year, month, day):
                       class_='historical-data-results proximity hidden-lg')
                 .find_all('form', recursive=False))
     return [parse_station(s) for s in stations]
-
-
-def get_majority_vote(col):
-    ''' Return the most frequent item of a pandas dataframe column.
-    Return a list of elements in case of a tie.
-    Args:
-        col:
-    To be used on non numerical columns.
-    '''
-    vals = col.dropna().drop_duplicates().tolist()
-    if len(vals) > 0:
-        e = max(set(vals), key=vals.count)
-        return ','.join([str(v) for v in vals
-                         if vals.count(e) == vals.count(v)])
-    else:
-        return None
-
 
 def parse_station(s):
     ''' Utility function for get_stations.
