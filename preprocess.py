@@ -9,26 +9,6 @@ from weather import get_weather
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import row_number, col, rank, avg
 
-
-def match_accidents_with_weather(accident_df):
-    return (accidents_df.select('DT_ACCDN',
-                                'LOC_LAT',
-                                'LOC_LONG',
-                                'HEURE_ACCDN')
-            .withColumn("year",
-                        extract_date_val(0)(accidents_df.DT_ACCDN))
-            .withColumn("month",
-                        extract_date_val(1)(accidents_df.DT_ACCDN))
-            .withColumn("day",
-                        extract_date_val(2)(accidents_df.DT_ACCDN))
-            .withColumn("HEURE_ACCDN",
-                        extract_hour(accidents_df.HEURE_ACCDN))
-            .drop('DT_ACCDN')
-            .replace('Non précisé', '00')
-            .rdd
-            .map(lambda row: get_weather_(row)))
-
-
 def match_accidents_with_roads(road_df, accident_df):
     nb_top_road_center_preselected = 5
     max_distance_accepted = 10  # in meters

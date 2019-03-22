@@ -7,6 +7,7 @@ from io import StringIO
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf
+import pyspark.sql.functions as f
 import numpy as np
 from pyspark.sql.types import *
 import time
@@ -35,8 +36,7 @@ COLUMNS = ['Temp (°C)',
            'Hmdx Flag',
            'Wind Chill',
            'Wind Chill Flag',
-           'Weather',
-           'station_denom']
+           'Weather']
 
 
 NUMERIC_COLS = ['Dew Point Temp (°C)',
@@ -47,8 +47,9 @@ NUMERIC_COLS = ['Dew Point Temp (°C)',
                 'Stn Press (kPa)',
                 'Hmdx',
                 'Wind Chill',
-                'Temp (°C)',
-                'station_denom']
+                'Temp (°C)']
+
+COLUMNS_USED = NUMERIC_COLS
 
 
 NON_NUMERIC_COLS = ['Temp Flag',
@@ -89,30 +90,8 @@ def get_schema():
     ''' Create the schema needed to create a new dataframe from the
     rows created from the data that has been fetch.
     '''
-    non_num = ['TempFlag',
-               'DewPointTempFlag',
-               'RelHumFlag',
-               'WindDirFlag',
-               'WindSpdFlag',
-               'VisibilityFlag',
-               'StnPressFlag',
-               'HmdxFlag',
-               'WindChillFlag']
-
-    num = ['DewPointTemp°C',
-           'RelHum%',
-           'WindDir10sdeg',
-           'WindSpdkm/h',
-           'Visibilitykm',
-           'StnPresskPa',
-           'Hmdx',
-           'WindChill'] + ['Temp°C']
-
-    return StructType([StructField(c, StringType(), True) for c in non_num]
-                      + [StructField(c, FloatType(), True) for c in num]
-                      + [StructField('Weather',
-                                     ArrayType(elementType=StringType()),
-                                     True)])
+    col_used = [del_unauthorized_char(c) for c in COLUMNS_USED]
+    return StructType([StructField(c, FloatType(), True) for c in col_used])
 
 
 def preprocess_accidents(accidents_df):
@@ -127,23 +106,27 @@ def preprocess_accidents(accidents_df):
                         .withColumn("day",
                                     extract_date_val(2)(accidents_df.DT_ACCDN))
                         .withColumn("HEURE_ACCDN",
-                                    extract_hour(accidents_df.HEURE_ACCDN))
+                                    f.split(f.col('HEURE_ACCDN'), ':')[0].cast("int"))
                         .drop('DT_ACCDN')
-                        .replace('Non précisé', '00'))
+                        .dropna())
 
 
 def get_weather_(row):
-    new_row = get_weather(row.LOC_LAT,
-                          row.LOC_LONG,
-                          row.year,
-                          row.month,
-                          row.day,
-                          row.HEURE_ACCDN)
+    try:
+        new_row = get_weather(row.LOC_LAT,
+                            row.LOC_LONG,
+                            row.year,
+                            row.month,
+                            row.day,
+                            row.HEURE_ACCDN)
 
-    global NB_ELEMENTS_TREATED
-    NB_ELEMENTS_TREATED += 1
-    print('progress: ', NB_ELEMENTS_TREATED*100/149886, '%')
-    return new_row
+        global NB_ELEMENTS_TREATED
+        NB_ELEMENTS_TREATED += 1
+        print('progress: ', NB_ELEMENTS_TREATED*100/149886, '%')
+        return new_row
+    except:
+        import pickle
+        pickle.dump(new_row, '/home/hantoine/errrow')
 
 
 def get_general_weather(weathers):
@@ -184,48 +167,11 @@ def get_temperature(weathers):
 
 
 def del_unauthorized_char(a_string):
+    a_string = a_string.split('(')[0].strip()
     for c in UNAUTH_CHARS:
         if c in a_string:
-            a_string = a_string.replace(c, "")
+            a_string = a_string.replace(c, "_")
     return a_string
-
-
-def preprocess_weathers(weathers):
-    ''' From a dataframe containing the weather information from several
-    stations, return a pyspark dataframe Row containing the averages/weighted
-    averages of the retrieved data.
-    '''
-    # compute mean of numeric columns
-    cols_to_mean = [col for col in NUMERIC_COLS
-                    if col not in ['Temp (°C)',
-                                   'station_denom']]
-    print('compute means')
-    means = weathers.loc[:, cols_to_mean].mean()
-    means_values = [None if math.isnan(i) else i
-                    for i in means.values.tolist()]
-
-    # use majority vote on non numeric columns
-    print('do majority voting')
-    non_num_weathers = (weathers.loc[:, NON_NUMERIC_COLS]
-                                .apply(lambda col: get_majority_vote(col),
-                                       axis=0))
-
-    non_num_indexes = [del_unauthorized_char(s) for s
-                       in non_num_weathers.index.values.tolist()]
-
-    num_indexes = [del_unauthorized_char(s) for s
-                   in means.index.values.tolist()]
-
-    print('create new row')
-    row = (Row(**dict(zip(non_num_indexes
-                          + num_indexes
-                          + ['Weather', 'Temp°C'],
-                          non_num_weathers.values.tolist()
-                          + means_values
-                          + [get_general_weather(weathers),
-                             get_temperature(weathers)]))))
-    print('send result', row)
-    return row
 
 
 def clean_new_dict(associated_dict):
@@ -272,42 +218,45 @@ def get_weather(lat, long, year, month, day, hour):
     print('input:', lat, long, year, month, day, hour)
     print('input types:', type(lat), type(long), type(year), type(month),
           type(day), type(hour))
-    input_ = [None if (isinstance(x, float) and math.isnan(x)) else int(x)
+    
+    """input_ = [None if (isinstance(x, float) and math.isnan(x)) else int(x)
               for x in [lat, long, year, month, day, hour]]
     if any(i is None for i in input_[:len(input_)]):  # all but hour
-        return empty_row()
+        return empty_row()"""
 
-    stations = get_stations(input_[0], input_[1], input_[2],
-                            input_[3], input_[4])
-    weathers = list()
+    try:
+        stations = get_stations(lat, long, year, month, hour)
+    except Exception as e:
+        print(e)
+        stations=[]
+
+    stations_weathers = list()
+    print(stations)
     for station in stations:
         print('Station ', station[0], '...')
-        s = get_station_temp(station[0],
-                             input_[2], input_[3], input_[4],
-                             input_[5])
+        s = get_station_weather(station[0], year, month, day, hour)
+        print('data found!')
+        s.loc["station_distance"] = station[1]
+        stations_weathers.append(s.to_dict())
 
-        if all(i is None for i in s) or all((isinstance(i, float)
-                                            and math.isnan(i)) for i in s):
-            continue
-        else:
-            print('data found!')
-            s.loc["station_denom"] = station[1]
-            associated_dict = s.to_dict()
-            print("cleaning dict")
-            associated_dict = clean_new_dict(associated_dict)
-            weathers.append(associated_dict)
+    print('build dataframe')
+    if len(stations_weathers) == 0:
+        stations_weathers.append(pd.Series([np.nan]*len(COLUMNS_USED), index=COLUMNS_USED))
 
-    if len(weathers) == 0:  # in this case, return empty row
-        return empty_row()
-    else:
-        print('build dataframe')
-        # print('Creating dataframe from collected data')
-        weathers_df = pd.DataFrame(weathers, dtype=object)
-        for num_col in NUMERIC_COLS:
-            weathers_df[num_col] = pd.to_numeric(weathers_df[num_col],
-                                                 errors='coerce')
-        print('preprocess')
-        return preprocess_weathers(weathers_df)
+    weathers_df = pd.DataFrame(stations_weathers)
+    weathers_df = weathers_df.dropna(how='all', subset=weathers_df.columns[:-1])
+    weathers_df.columns = [del_unauthorized_char(c) for c in weathers_df.columns]
+
+    def weighted_average(df, c):
+        t = df.loc[:, [c, 'station_distance']].dropna().apply(lambda row: pd.Series([row[0] / row[1], 1 / row[1]]), axis=1)
+        if len(t) == 0:
+            return None
+        return float(t[0].sum() / t[1].sum())
+
+    dict_weather = {c: weighted_average(weathers_df, c) for c in weathers_df.columns[:-1]}
+    print('preprocess')
+    print(dict_weather)
+    return Row(**dict_weather)
 
 
 def get_pandas_dataframe(url):
@@ -325,41 +274,24 @@ def get_pandas_dataframe(url):
     return df
 
 
-def get_station_temp(station_id, year, month, day, hour):
+def get_station_weather(station_id, year, month, day, hour):
     ''' Get temperature for a given station (given its station ID).
     '''
     cache_file_path = f'data/weather/s{station_id}_{year}_{month}.h5'
-
-    """if isfile("cache_file_path"):
-        df = pd.read_hdf(cache_file_path, key='w')
-    else:"""
 
     url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
            f'format=csv&stationID={station_id}&Year={year}'
            f'&Month={month}&Day={day}&'
            f'timeframe=1&submit=Download+Data')
+    print(url)
     try:
         df = get_pandas_dataframe(url)
     except Exception as e:
         print('Unable to fetch:', url)
         print(e)
-        return None
+        return pd.Series([np.nan]*len(COLUMNS_USED), index=COLUMNS_USED)
 
-    if not isdir('data/weather/'):
-        mkdir('data/weather/')
-
-    """df.to_hdf(cache_file_path, key='w')
-    df.to_hdf(cache_file_path, key='w')"""
-
-    if len(df.columns) > 4:
-        if hour is not None:
-            return (df.loc[f'{year}-{month}-{day} {hour}:00']
-                    .drop(['Year', 'Month', 'Day', 'Time']))
-        else:
-            return (df.iloc[0]
-                    .drop(['Year', 'Month', 'Day', 'Time']))
-    else:
-        return None
+    return df.loc[f'{year}-{month}-{day} {hour}:00'].reindex(COLUMNS_USED)
 
 
 def get_stations(lat, long, year, month, day):
@@ -421,12 +353,17 @@ def degree_to_DMS(degree):
 
 
 def skip_header(file):
-    ''' Utility function for get_station_temp.
+    ''' Utility function for get_station_weather.
     '''
     n_emptyLineMet = 0
+    nb_line = 0
+    nb_max_header_lines = 100
     while n_emptyLineMet < 2:
         if file.readline() == '\n':
             n_emptyLineMet += 1
+        if nb_line > nb_max_header_lines:
+            raise Exception("Invalid file")
+        nb_line += 1
 
 
 def fetch_weather_dataset(replace=True):
@@ -445,7 +382,7 @@ def fetch_weather_dataset(replace=True):
 
     # prepare backup parameters
     backup_file = 'data/weather_backup.parquet'
-    if os.path.isdir(backup_file):
+    if replace and os.path.isdir(backup_file):
         shutil.rmtree(backup_file)
 
     df_schema = get_schema()
@@ -460,4 +397,4 @@ def fetch_weather_dataset(replace=True):
     return
 
 
-fetch_weather_dataset()
+# fetch_weather_dataset()
