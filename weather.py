@@ -35,13 +35,14 @@ def del_unauthorized_char(a_string):
     return a_string
 
 
-def get_weather(lat, long, year, month, day, hour):
+def get_weather(id, lat, long, year, month, day, hour):
     ''' Get the weather at a given location at a given time.
     '''
 
     try:
-        stations = get_stations(lat, long, year, month, hour)
+        stations = get_stations(lat, long, year, month, day)
     except Exception as e:
+        print(f'Exception while fetching stations for accident {id}:')
         print(e)
         stations = []
 
@@ -172,6 +173,7 @@ def skip_header(file):
 
 def add_weather_to_row(row):
     row_dict = get_weather(
+                        row.accident_id,
                         row.loc_lat,
                         row.loc_long,
                         row.year,

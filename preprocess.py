@@ -10,7 +10,7 @@ from weather import add_weather_columns, extract_year_month_day
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date
 from os.path import isdir
-
+from shutil import rmtree
 
 def preprocess_accidents(accidents_df):
     ''' Select/build columns of interest and format their names.
@@ -161,8 +161,12 @@ def init_spark():
 
 def get_positive_samples(spark, road_df=None):
     cache_path = 'data/positive-samples.parquet'
-    if isdir('cache_path'):
-        return spark.read.parquet(cache_path)
+    if isdir(cache_path):
+        try:
+            return spark.read.parquet(cache_path)
+        except Exception:
+            print('Failed reading from disk cache')
+            rmtree(cache_path)
 
     if road_df is None:
         road_df = get_road_df(spark)
