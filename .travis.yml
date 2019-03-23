@@ -6,7 +6,7 @@ python:
 
 install:
     - pip install coveralls pytest==3.6 pytest-cov pycodestyle
-    - pip install pyspark lxml requests beautifulsoup4 pandas numpy
+    - pip install pyspark lxml requests beautifulsoup4 pandas numpy pyarrow
 
 script:
     - export PYTHONPATH=${PYTHONPATH}:${PWD}

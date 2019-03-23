@@ -12,6 +12,7 @@ from pyspark.sql.functions import row_number, col, rank, avg, split, to_date
 from os.path import isdir
 from shutil import rmtree
 
+
 def preprocess_accidents(accidents_df):
     ''' Select/build columns of interest and format their names.
     '''
