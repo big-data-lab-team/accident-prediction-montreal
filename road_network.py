@@ -20,8 +20,7 @@ def get_road_df(spark):
     return extract_road_segments_df(spark)
 
 
-def get_road_features_df(spark):
-    road_df = get_road_df(spark)
+def get_road_features_df(spark, road_df=None):
 
     if os.path.isdir('data/road-features.parquet'):
         print('Skip extracting road features: already done')
@@ -29,6 +28,9 @@ def get_road_features_df(spark):
             return spark.read.parquet('data/road-features.parquet')
         except:  # noqa: E722
             pass
+
+    if road_df is None:
+        road_df = get_road_df(spark)
 
     print('Extracting road features...')
     assign_street_type_udf = udf(assign_street_type, StringType())
@@ -51,12 +53,12 @@ def get_road_features_df(spark):
                              'dist_measure')
                      .groupBy('street_id', 'street_type', 'street_name')
                      .max('dist_measure')
-                     .withColumn('length',
+                     .withColumn('street_length',
                                  col('max(dist_measure)') * earth_diameter())
                      .select('street_id',
                              col('street_type').alias('street_level'),
                              'street_name',
-                             'length')
+                             'street_length')
                      .withColumn('street_type',
                                  assign_street_type_udf(col('street_name')))
                      .drop('street_name'))

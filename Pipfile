@@ -19,6 +19,7 @@ requests = "*"
 pytest = "*"
 coverage = "*"
 matplotlib = "*"
+pyarrow = "*"
 
 [requires]
 python_version = "3.7"

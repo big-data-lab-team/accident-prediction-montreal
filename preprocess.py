@@ -1,13 +1,31 @@
 from accidents_montreal import fetch_accidents_montreal,\
-                               extract_accidents_montreal_df
-from road_network import fetch_road_network,\
-                         extract_road_segments_df,\
-                         distance_intermediate_formula,\
+                               extract_accidents_montreal_df,\
+                               get_accident_df
+from road_network import distance_intermediate_formula,\
                          distance_measure,\
-                         earth_diameter
-from weather import get_weather
+                         earth_diameter,\
+                         get_road_features_df,\
+                         get_road_df
+from weather import add_weather_columns, extract_year_month_day
 from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import row_number, col, rank, avg
+from pyspark.sql.functions import row_number, col, rank, avg, split, to_date
+from os.path import isdir
+
+
+def preprocess_accidents(accidents_df):
+    ''' Select/build columns of interest and format their names.
+    '''
+    return (accidents_df
+            .select('ACCIDENT_ID', 'DT_ACCDN', 'LOC_LAT',
+                    'LOC_LONG', 'HEURE_ACCDN')
+            .withColumn('date', to_date(col('DT_ACCDN'), format='yyyy/MM/dd'))
+            .withColumn("hour", split(col('HEURE_ACCDN'), ':')[0].cast("int"))
+            .drop('DT_ACCDN', 'HEURE_ACCDN')
+            .withColumnRenamed('LOC_LAT', 'loc_lat')
+            .withColumnRenamed('LOC_LONG', 'loc_long')
+            .withColumnRenamed('ACCIDENT_ID', 'accident_id')
+            .dropna())
+
 
 def match_accidents_with_roads(road_df, accident_df):
     nb_top_road_center_preselected = 5
@@ -20,21 +38,21 @@ def match_accidents_with_roads(road_df, accident_df):
                     .drop_duplicates()
                     .persist())
 
-    accident_window = (Window.partitionBy("ACCIDENT_ID")
+    accident_window = (Window.partitionBy("accident_id")
                        .orderBy("distance_measure"))
     accidents_top_k_roads = (accident_df
-                             .select('LOC_LAT', 'LOC_LONG', 'ACCIDENT_ID')
+                             .select('loc_lat', 'loc_long', 'accident_id')
                              .crossJoin(road_centers)
                              .withColumn('distance_inter',
                                          distance_intermediate_formula(
-                                                        'LOC_LAT',
-                                                        'LOC_LONG',
+                                                        'loc_lat',
+                                                        'loc_long',
                                                         'center_lat',
                                                         'center_long'))
                              .withColumn('distance_measure',
                                          distance_measure())
-                             .select('ACCIDENT_ID', 'street_id',
-                                     'distance_measure', 'LOC_LAT', 'LOC_LONG',
+                             .select('accident_id', 'street_id',
+                                     'distance_measure', 'loc_lat', 'loc_long',
                                      rank().over(accident_window)
                                      .alias('distance_rank'))
                              .filter(col('distance_rank') <=
@@ -47,14 +65,14 @@ def match_accidents_with_roads(road_df, accident_df):
                                    .join(road_df, 'street_id')
                                    .withColumn('distance_inter',
                                                distance_intermediate_formula(
-                                                              'LOC_LAT',
-                                                              'LOC_LONG',
+                                                              'loc_lat',
+                                                              'loc_long',
                                                               'coord_lat',
                                                               'coord_long'))
                                    .withColumn('distance_measure',
                                                distance_measure())
-                                   .select('ACCIDENT_ID', 'LOC_LAT',
-                                           'LOC_LONG', 'coord_lat',
+                                   .select('accident_id', 'loc_lat',
+                                           'loc_long', 'coord_lat',
                                            'coord_long', 'street_id',
                                            'street_name',
                                            row_number()
@@ -66,7 +84,7 @@ def match_accidents_with_roads(road_df, accident_df):
                                                col('distance_measure')
                                                * earth_diameter())
                                    .drop('distance_rank', 'distance_measure',
-                                         'LOC_LAT', 'LOC_LONG', 'coord_lat',
+                                         'loc_lat', 'loc_long', 'coord_lat',
                                          'coord_long')
                                    .persist())
 
@@ -75,7 +93,7 @@ def match_accidents_with_roads(road_df, accident_df):
     accidents_road_correct_match = (accidents_roads_first_match
                                     .filter(col('distance')
                                             < max_distance_accepted)
-                                    .select('ACCIDENT_ID', 'street_id'))
+                                    .select('accident_id', 'street_id'))
 
     # If not, we try to get a better match by adding intermediate points on
     # the preselected streets
@@ -85,12 +103,12 @@ def match_accidents_with_roads(road_df, accident_df):
     accidents_close_streets_coords = (accidents_roads_first_match
                                       .filter(col('distance')
                                               >= max_distance_accepted)
-                                      .select('ACCIDENT_ID')
+                                      .select('accident_id')
                                       .join(accidents_top_k_roads,
-                                            'ACCIDENT_ID')
+                                            'accident_id')
                                       .join(road_df, 'street_id')
-                                      .select('ACCIDENT_ID', 'street_id',
-                                              'LOC_LAT', 'LOC_LONG',
+                                      .select('accident_id', 'street_id',
+                                              'loc_lat', 'loc_long',
                                               'coord_long', 'coord_lat')
                                       .persist())
 
@@ -101,7 +119,7 @@ def match_accidents_with_roads(road_df, accident_df):
                              .rowsBetween(0, +1))
     accidents_close_streets_with_additional_coords = \
         (accidents_close_streets_coords
-         .select('ACCIDENT_ID', 'street_id', 'LOC_LAT', 'LOC_LONG',
+         .select('accident_id', 'street_id', 'loc_lat', 'loc_long',
                  avg('coord_long')
                  .over(street_rolling_window)
                  .alias('coord_long'),
@@ -116,16 +134,16 @@ def match_accidents_with_roads(road_df, accident_df):
     accidents_roads_first_match_with_additional_coords = \
         (accidents_close_streets_with_additional_coords
          .withColumn('distance_inter', distance_intermediate_formula(
-                                                      'LOC_LAT',
-                                                      'LOC_LONG',
+                                                      'loc_lat',
+                                                      'loc_long',
                                                       'coord_lat',
                                                       'coord_long'))
          .withColumn('distance_measure', distance_measure())
-         .select('ACCIDENT_ID', 'street_id', 'LOC_LAT', 'LOC_LONG',
+         .select('accident_id', 'street_id', 'loc_lat', 'loc_long',
                  'coord_lat', 'coord_long',
                  row_number().over(accident_window).alias('distance_rank'))
          .filter(col('distance_rank') == 1)
-         .drop('distance_rank', 'LOC_LAT', 'LOC_LONG',
+         .drop('distance_rank', 'loc_lat', 'loc_long',
                'coord_lat', 'coord_long'))
 
     # Union accidents matched correctly with first method with the accidents
@@ -139,3 +157,25 @@ def init_spark():
             .builder
             .appName("Road accidents prediction")
             .getOrCreate())
+
+
+def get_positive_samples(spark, road_df=None):
+    cache_path = 'data/positive-samples.parquet'
+    if isdir('cache_path'):
+        return spark.read.parquet(cache_path)
+
+    if road_df is None:
+        road_df = get_road_df(spark)
+
+    accident_df = preprocess_accidents(get_accident_df(spark))
+    road_features_df = get_road_features_df(spark, road_df=road_df)
+    match_accident_road = match_accidents_with_roads(road_df, accident_df)
+    accident_with_weather = add_weather_columns(spark, accident_df)
+    positive_samples = extract_year_month_day(
+            accident_with_weather
+            .join(match_accident_road, 'accident_id')
+            .join(road_features_df, 'street_id'))
+
+    positive_samples.write.parquet(cache_path)
+
+    return positive_samples

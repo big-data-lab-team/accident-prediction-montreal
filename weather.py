@@ -6,17 +6,13 @@ from requests import get
 from io import StringIO
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf
-import pyspark.sql.functions as f
+from pyspark.sql.functions import udf, col, year, month, dayofmonth
+from pyspark.sql.types import StructField, FloatType, StructType
 import numpy as np
-from pyspark.sql.types import *
 import time
 import shutil
 import math
 import os
-from accidents_montreal import fetch_accidents_montreal,\
-                               extract_accidents_montreal_df
-from road_network import fetch_road_network, extract_road_segments_df
 
 COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Rel Hum (%)',
@@ -27,57 +23,8 @@ COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Hmdx',
                 'Wind Chill',
                 'Temp (°C)']
-]
 
 UNAUTH_CHARS = [' ', ',', ';', '{', '}', '(', ')', '\n', '\t', '=']
-
-
-def extract_date_val(i):
-    return udf(lambda val: val.split('/')[i])
-
-
-def init_spark():
-    ''' Initialize a Spark Session
-    '''
-    return (SparkSession
-            .builder
-            .getOrCreate())
-
-
-def get_schema():
-    ''' Create the schema needed to create a new dataframe from the
-    rows created from the data that has been fetch.
-    '''
-    col_used = [del_unauthorized_char(c) for c in COLUMNS_USED]
-    return StructType([StructField("ACCIDENT_ID", LongType(), False)] + [StructField(c, FloatType(), True) for c in col_used])
-
-
-def preprocess_accidents(accidents_df):
-    ''' Select/build columns of interest and format their names.
-    '''
-    return (accidents_df.select('ACCIDENT_ID', 'DT_ACCDN', 'LOC_LAT',
-                                'LOC_LONG', 'HEURE_ACCDN')
-                        .withColumn("year",
-                                    extract_date_val(0)(accidents_df.DT_ACCDN))
-                        .withColumn("month",
-                                    extract_date_val(1)(accidents_df.DT_ACCDN))
-                        .withColumn("day",
-                                    extract_date_val(2)(accidents_df.DT_ACCDN))
-                        .withColumn("HEURE_ACCDN",
-                                    f.split(f.col('HEURE_ACCDN'), ':')[0].cast("int"))
-                        .drop('DT_ACCDN')
-                        .dropna())
-
-
-def get_weather_(row):
-    new_row = get_weather(row.ACCIDENT_ID,
-                        row.LOC_LAT,
-                        row.LOC_LONG,
-                        row.year,
-                        row.month,
-                        row.day,
-                        row.HEURE_ACCDN)
-    return new_row
 
 
 def del_unauthorized_char(a_string):
@@ -88,7 +35,7 @@ def del_unauthorized_char(a_string):
     return a_string
 
 
-def get_weather(id, lat, long, year, month, day, hour):
+def get_weather(lat, long, year, month, day, hour):
     ''' Get the weather at a given location at a given time.
     '''
 
@@ -96,7 +43,7 @@ def get_weather(id, lat, long, year, month, day, hour):
         stations = get_stations(lat, long, year, month, hour)
     except Exception as e:
         print(e)
-        stations=[]
+        stations = []
 
     stations_weathers = list()
     for station in stations:
@@ -109,19 +56,20 @@ def get_weather(id, lat, long, year, month, day, hour):
             pd.Series([np.nan]*(len(COLUMNS_USED)+1))
             .reindex(COLUMNS_USED+['station_distance']))
 
-    weathers_df = pd.DataFrame(stations_weathers)
-    weathers_df = weathers_df.dropna(how='all', subset=weathers_df.columns[:-1])
-    weathers_df.columns = [del_unauthorized_char(c) for c in weathers_df.columns]
+    weather_df = pd.DataFrame(stations_weathers)
+    weather_df = weather_df.dropna(how='all', subset=weather_df.columns[:-1])
+    weather_df.columns = [del_unauthorized_char(c) for c in weather_df.columns]
 
     def weighted_average(df, c):
-        t = df.loc[:, [c, 'station_distance']].dropna().apply(lambda row: pd.Series([row[0] / row[1], 1 / row[1]]), axis=1)
+        t = (df.loc[:, [c, 'station_distance']]
+             .dropna()
+             .apply(lambda r: pd.Series([r[0] / r[1], 1 / r[1]]), axis=1))
         if len(t) == 0:
             return None
         return float(t[0].sum() / t[1].sum())
 
-    dict_weather = {c: weighted_average(weathers_df, c) for c in weathers_df.columns[:-1]}
-    dict_weather['ACCIDENT_ID'] = id
-    return Row(**dict_weather)
+    weather_cols = weather_df.columns[:-1]
+    return {c: weighted_average(weather_df, c) for c in weather_cols}
 
 
 def get_pandas_dataframe(url):
@@ -175,12 +123,17 @@ def get_stations(lat, long, year, month, day):
            f'txtCentralLongMin={long[1]}&txtCentralLongSec={long[2]:.1f}&'
            f'StartYear=1840&EndYear=2019&optLimit=specDate&Year={year}&'
            f'Month={month}&Day={day}&selRowPerPage=100')
-    page = BeautifulSoup(get(url).content, 'lxml')
-    stations = (page.body.main
-                .find('div',
-                      class_='historical-data-results proximity hidden-lg')
-                .find_all('form', recursive=False))
+    try:
+        page = BeautifulSoup(get(url).content, 'lxml')
+        stations = (page.body.main
+                    .find('div',
+                          class_='historical-data-results proximity hidden-lg')
+                    .find_all('form', recursive=False))
+    except Exception:
+        print('Unable to fetch:', url)
+        raise
     return [parse_station(s) for s in stations]
+
 
 def parse_station(s):
     ''' Utility function for get_stations.
@@ -217,35 +170,41 @@ def skip_header(file):
         nb_line += 1
 
 
-def fetch_weather_dataset(replace=True):
+def add_weather_to_row(row):
+    row_dict = get_weather(
+                        row.loc_lat,
+                        row.loc_long,
+                        row.year,
+                        row.month,
+                        row.day,
+                        row.hour)
+    row_dict.update(row.asDict())
+    return Row(**row_dict)
+
+
+def get_schema_with_weather(schema):
+    for c in COLUMNS_USED:
+        schema.add(StructField(del_unauthorized_char(c), FloatType(), True))
+    # Since columns will be sorted in the rows of the RDD
+    schema = StructType(sorted(schema, key=lambda f: f.name))
+    return schema
+
+
+def extract_year_month_day(df):
+    return (df
+            .withColumn('year', year(col('date')))
+            .withColumn('month', month(col('date')))
+            .withColumn('day', dayofmonth(col('date'))))
+
+
+def add_weather_columns(spark, samples):
     ''' Main function which fetch weather data for each row of
-    the accident dataset and write the result as parquet data.
+    the given dataframe of samples.
     '''
 
-    # init spark
-    spark = init_spark()
-    sc = spark.sparkContext
+    samples = extract_year_month_day(samples)
+    df_schema = get_schema_with_weather(samples.schema)
 
-    # retrieve accident dataset
-    fetch_accidents_montreal()
-    accidents_df = extract_accidents_montreal_df(spark)
-    clean_acc_df = preprocess_accidents(accidents_df)
-
-    # prepare backup parameters
-    backup_file = 'data/weather_backup.parquet'
-    if replace and os.path.isdir(backup_file):
-        shutil.rmtree(backup_file)
-
-    df_schema = get_schema()
-    t = time.time()
-    v = (spark.createDataFrame(clean_acc_df
-         .sample(0.5)
-         .rdd
-         .map(lambda row: get_weather_(row)), df_schema)
-         .write.parquet(backup_file))
-    t = time.time() - t
-    print('Done. Processing time:', t)
-    return
-
-
-# fetch_weather_dataset()
+    return spark.createDataFrame(
+            samples.rdd.map(add_weather_to_row),
+            df_schema).drop('year', 'month', 'day')
