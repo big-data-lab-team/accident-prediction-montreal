@@ -3,7 +3,6 @@ from accidents_montreal import fetch_accidents_montreal,\
                                get_accident_df
 from road_network import distance_intermediate_formula,\
                          distance_measure,\
-                         earth_diameter,\
                          get_road_features_df,\
                          get_road_df
 from weather import add_weather_columns, extract_year_month_day
@@ -83,7 +82,7 @@ def match_accidents_with_roads(road_df, accident_df):
                                    .filter(col('distance_rank') == 1)
                                    .withColumn('distance',
                                                col('distance_measure')
-                                               * earth_diameter())
+                                               * (6371 * 2 * 1000))
                                    .drop('distance_rank', 'distance_measure',
                                          'loc_lat', 'loc_long', 'coord_lat',
                                          'coord_long')
@@ -160,6 +159,40 @@ def init_spark():
             .getOrCreate())
 
 
+def generate_dates_df(start, end):
+    ''' Generate all dates and all hours between datetime start and
+    datetime end.
+    '''
+    date = datetime.datetime.strptime(start, "%d/%m/%Y")
+    end = datetime.datetime.strptime(end, "%d/%m/%Y")
+    dates = list()
+    while(date != end):
+        date += datetime.timedelta(days=1)
+        for i in range(24):
+            dates.append((date.strftime("%d/%m/%Y"), i))
+    return spark.createDataFrame(dates, ['date', 'hour']).persist()
+
+
+def get_negative_samples(spark):
+    cache_path = 'data/negative-samples.parquet'
+    if isdir(cache_path):
+        try:
+            return spark.read.parquet(cache_path)
+        except Exception:
+            print('Failed reading from disk cache')
+            rmtree(cache_path)
+
+    dates_df = generate_dates("01/01/2012", "01/01/2017")
+    road_df = (get_road_df(spark)
+               .select(['center_long', 'center_lat'])
+               .orderBy(rand())
+               .persist())
+
+    negative_samples = add_weather_columns(spark, dates_df.crossJoin(road_df))
+    negative_samples.write.parquet(cache_path)
+    return negative_samples
+
+
 def get_positive_samples(spark, road_df=None):
     cache_path = 'data/positive-samples.parquet'
     if isdir(cache_path):
@@ -182,5 +215,4 @@ def get_positive_samples(spark, road_df=None):
             .join(road_features_df, 'street_id'))
 
     positive_samples.write.parquet(cache_path)
-
     return positive_samples
