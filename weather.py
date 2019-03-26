@@ -100,13 +100,16 @@ def get_station_weather(station_id, year, month, day, hour):
                f'timeframe=1&submit=Download+Data')
         try:
             df = get_pandas_dataframe(url)
-            if not isdir('data/weather/'):
-                mkdir('data/weather/')
-            df.to_parquet(cache_file_path)
         except Exception as e:
             print('Unable to fetch:', url)
             print(e)
             return pd.Series([np.nan]*len(COLUMNS_USED), index=COLUMNS_USED)
+        try:
+            if not isdir('data/weather/'):
+                mkdir('data/weather/')
+            df.to_parquet(cache_file_path)
+        except Exception:
+            print("Failed to cache weather dataframe to disk")
 
     return df.loc[f'{year}-{month}-{day} {hour}:00'].reindex(COLUMNS_USED)
 
