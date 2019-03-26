@@ -7,9 +7,10 @@ from road_network import distance_intermediate_formula,\
                          get_road_df
 from weather import add_weather_columns, extract_year_month_day
 from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import row_number, col, rank, avg, split, to_date
+from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, rand, monotonically_increasing_id
 from os.path import isdir
 from shutil import rmtree
+import datetime
 
 
 def preprocess_accidents(accidents_df):
@@ -159,7 +160,7 @@ def init_spark():
             .getOrCreate())
 
 
-def generate_dates_df(start, end):
+def generate_dates_df(start, end, spark):
     ''' Generate all dates and all hours between datetime start and
     datetime end.
     '''
@@ -182,15 +183,20 @@ def get_negative_samples(spark):
             print('Failed reading from disk cache')
             rmtree(cache_path)
 
-    dates_df = generate_dates("01/01/2012", "01/01/2017")
+    dates_df = generate_dates_df("01/01/2012", "01/01/2017", spark)
     road_df = (get_road_df(spark)
                .select(['center_long', 'center_lat'])
+               .withColumnRenamed('center_lat', 'loc_lat')
+               .withColumnRenamed('center_long', 'loc_long')
                .orderBy(rand())
                .persist())
-
-    negative_samples = add_weather_columns(spark, dates_df.crossJoin(road_df))
+    print((dates_df.crossJoin(road_df)
+                         .withColumn('accident_id', monotonically_increasing_id())).columns)
+    """negative_samples = (add_weather_columns(spark, dates_df.crossJoin(road_df)
+                .withColumn('accident_id', monotonically_increasing_id())))
     negative_samples.write.parquet(cache_path)
-    return negative_samples
+    return negative_samples"""
+    return
 
 
 def get_positive_samples(spark, road_df=None):
