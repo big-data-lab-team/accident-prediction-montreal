@@ -171,15 +171,19 @@ def generate_dates_df(start, end, spark):
     while(date != end):
         date += datetime.timedelta(days=1)
         for i in range(24):
-            dates.append((date.strftime("%d/%m/%Y"), i))
+            dates.append((date.strftime("%Y-%m-%d"), i))
     return spark.createDataFrame(dates, ['date', 'hour']).persist()
 
 
-def get_negative_samples(spark):
+def get_negative_samples(spark, replace_cache=False):
     cache_path = 'data/negative-samples.parquet'
     if isdir(cache_path):
         try:
-            return spark.read.parquet(cache_path)
+            if replace_cache:
+                print('Removing cache...')
+                rmtree(cache_path)
+            else:
+                return spark.read.parquet(cache_path)
         except Exception:
             print('Failed reading from disk cache')
             rmtree(cache_path)
@@ -209,11 +213,14 @@ def get_negative_samples(spark):
     return negative_samples
 
 
-def get_positive_samples(spark, road_df=None):
+def get_positive_samples(spark, road_df=None, replace_cache=False):
     cache_path = 'data/positive-samples.parquet'
     if isdir(cache_path):
         try:
-            return spark.read.parquet(cache_path)
+            if replace_cache:
+                rmtree(cache_path)
+            else:
+                return spark.read.parquet(cache_path)
         except Exception:
             print('Failed reading from disk cache')
             rmtree(cache_path)

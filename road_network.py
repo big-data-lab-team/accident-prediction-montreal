@@ -154,13 +154,15 @@ def get_road_segments_RDD(spark):
 
 
 def extract_road_segments_df(spark):
-    """if os.path.isdir('data/road-network.parquet'):
+    save_is_safe = False
+    if os.path.isdir('data/road-network.parquet'):
         print('Skip extraction of road network dataframe: already done,'
               ' reading from file')
         try:
             return spark.read.parquet('data/road-network.parquet')
-        except:  # noqa: E722
-            pass"""
+            save_is_safe = True
+        except Exception as e:  # noqa: E722
+            print(e)
 
     print('Extracting road network dataframe...')
     cols = ['street_name', 'street_type', 'center_long', 'center_lat',
@@ -173,7 +175,8 @@ def extract_road_segments_df(spark):
                                abs(hash(col('center_long'), col('center_lat')))
                                ))
 
-    # road_seg_df.write.parquet('data/road-network.parquet')
+    if save_is_safe:
+        road_seg_df.write.parquet('data/road-network.parquet')
     print('Extracting road network dataframe done')
     return road_seg_df
 
