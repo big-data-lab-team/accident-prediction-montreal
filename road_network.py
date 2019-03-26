@@ -34,6 +34,7 @@ def get_road_features_df(spark, road_df=None):
 
     print('Extracting road features...')
     assign_street_type_udf = udf(assign_street_type, StringType())
+    earth_diameter = 6371 * 2 * 1000  # in meters
     road_features = (road_df
                      .select('street_id', 'street_type', 'street_name',
                              'coord_lat', 'coord_long')
@@ -54,7 +55,7 @@ def get_road_features_df(spark, road_df=None):
                      .groupBy('street_id', 'street_type', 'street_name')
                      .max('dist_measure')
                      .withColumn('street_length',
-                                 col('max(dist_measure)') * earth_diameter())
+                                 col('max(dist_measure)') * earth_diameter)
                      .select('street_id',
                              col('street_type').alias('street_level'),
                              'street_name',
@@ -190,10 +191,6 @@ def distance_intermediate_formula(lat1, long1, lat2, long2):
 def distance_measure():
     return atan2(sqrt(col('distance_inter')),
                  sqrt(1-col('distance_inter')))
-
-
-def earth_diameter():
-    return 6371 * 2 * 1000  # in meter
 
 
 def assign_street_type(street_name):
