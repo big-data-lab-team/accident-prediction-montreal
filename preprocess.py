@@ -7,7 +7,8 @@ from road_network import distance_intermediate_formula,\
                          get_road_df
 from weather import add_weather_columns, extract_year_month_day
 from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, rand, monotonically_increasing_id
+from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
+                                  rand, monotonically_increasing_id
 from os.path import isdir
 from shutil import rmtree
 import datetime
@@ -184,19 +185,28 @@ def get_negative_samples(spark):
             rmtree(cache_path)
 
     dates_df = generate_dates_df("01/01/2012", "01/01/2017", spark)
-    road_df = (get_road_df(spark)
-               .select(['center_long', 'center_lat'])
-               .withColumnRenamed('center_lat', 'loc_lat')
-               .withColumnRenamed('center_long', 'loc_long')
-               .orderBy(rand())
-               .persist())
-    print((dates_df.crossJoin(road_df)
-                         .withColumn('accident_id', monotonically_increasing_id())).columns)
-    """negative_samples = (add_weather_columns(spark, dates_df.crossJoin(road_df)
-                .withColumn('accident_id', monotonically_increasing_id())))
+    road_df = get_road_df(spark)
+    road_features_df = get_road_features_df(spark, road_df=road_df)
+    road_df = (road_df.select(['center_long', 'center_lat', 'street_id'])
+                      .withColumnRenamed('center_lat', 'loc_lat')
+                      .withColumnRenamed('center_long', 'loc_long')
+                      .orderBy(rand())
+                      .persist())
+
+    negative_samples = (dates_df.rdd
+                                .cartesian(road_df.rdd)
+                                .map(lambda row: row[0] + row[1])
+                                .toDF(['date', 'hour', 'loc_long',
+                                       'loc_lat', 'street_id'])
+                                .withColumn('accident_id',
+                                            monotonically_increasing_id())
+                                .persist())
+
+    negative_samples = (add_weather_columns(spark, negative_samples)
+                        .join(road_features_df, 'street_id'))
+
     negative_samples.write.parquet(cache_path)
-    return negative_samples"""
-    return
+    return negative_samples
 
 
 def get_positive_samples(spark, road_df=None):
