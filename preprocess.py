@@ -13,6 +13,7 @@ from os.path import isdir
 from shutil import rmtree
 import datetime
 from utils import raise_parquet_not_del_error, init_spark
+import pyspark
 
 
 def preprocess_accidents(accidents_df):
@@ -178,6 +179,7 @@ def get_negative_samples(spark, replace_cache=False, limit=None):
                 rmtree(cache_path)
                 raise_parquet_not_del_error(cache_path)
             else:
+                print('Reading from cache...')
                 return spark.read.parquet(cache_path)
         except Exception:
             print('Failed reading from disk cache')
@@ -192,21 +194,21 @@ def get_negative_samples(spark, replace_cache=False, limit=None):
                        .withColumnRenamed('center_lat', 'loc_lat')
                        .withColumnRenamed('center_long', 'loc_long')
                        .orderBy(rand())
-                       .rdd
-                       .persist())
+                       .rdd)
+    #.persist(pyspark.StorageLevel.MEMORY_AND_DISK))
 
     if limit is not None:
         sc = spark.sparkContext
-        dates_rdd = sc.parallelize(dates_rdd.take(limit)).persist()
-        road_rdd = sc.parallelize(road_rdd.take(limit)).persist()
+        dates_rdd = sc.parallelize(dates_rdd.take(limit)) #.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+        road_rdd = sc.parallelize(road_rdd.take(limit)) #.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
     negative_samples = (dates_rdd.cartesian(road_rdd)
                                  .map(lambda row: row[0] + row[1])
                                  .toDF(['date', 'hour', 'loc_long',
                                        'loc_lat', 'street_id'])
                                  .withColumn('accident_id',
-                                             monotonically_increasing_id())
-                                 .persist())
+                                             monotonically_increasing_id()))
+    #.persist(pyspark.StorageLevel.MEMORY_AND_DISK))
 
     negative_samples = (add_weather_columns(spark, negative_samples)
                         .join(road_features_df, 'street_id'))
