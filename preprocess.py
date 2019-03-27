@@ -169,7 +169,7 @@ def generate_dates_df(start, end, spark):
     return spark.createDataFrame(dates, ['date', 'hour']).persist()
 
 
-def get_negative_samples(spark, replace_cache=False, limit=-1):
+def get_negative_samples(spark, replace_cache=False, limit=None):
     cache_path = 'data/negative-samples.parquet'
     if isdir(cache_path):
         try:
@@ -189,25 +189,23 @@ def get_negative_samples(spark, replace_cache=False, limit=-1):
 
     road_features_df = get_road_features_df(spark, road_df=road_df)
     road_rdd = (road_df.select(['center_long', 'center_lat', 'street_id'])
-                      .withColumnRenamed('center_lat', 'loc_lat')
-                      .withColumnRenamed('center_long', 'loc_long')
-                      .orderBy(rand())
-                      .rdd
-                      .persist())
+                       .withColumnRenamed('center_lat', 'loc_lat')
+                       .withColumnRenamed('center_long', 'loc_long')
+                       .orderBy(rand())
+                       .rdd
+                       .persist())
 
-
-    if limit > 0:
+    if limit is not None:
         sc = spark.sparkContext
         dates_rdd = sc.parallelize(dates_rdd.take(limit)).persist()
         road_rdd = sc.parallelize(road_rdd.take(limit)).persist()
-
 
     negative_samples = (dates_rdd.cartesian(road_rdd)
                                  .map(lambda row: row[0] + row[1])
                                  .toDF(['date', 'hour', 'loc_long',
                                        'loc_lat', 'street_id'])
                                  .withColumn('accident_id',
-                                            monotonically_increasing_id())
+                                             monotonically_increasing_id())
                                  .persist())
 
     negative_samples = (add_weather_columns(spark, negative_samples)
@@ -217,7 +215,7 @@ def get_negative_samples(spark, replace_cache=False, limit=-1):
     return negative_samples
 
 
-def get_positive_samples(spark, road_df=None, replace_cache=False, limit=-1):
+def get_positive_samples(spark, road_df=None, replace_cache=False, limit=None):
     cache_path = 'data/positive-samples.parquet'
     if isdir(cache_path):
         try:
@@ -234,10 +232,13 @@ def get_positive_samples(spark, road_df=None, replace_cache=False, limit=-1):
     if road_df is None:
         road_df = get_road_df(spark, replace_cache)
 
-    if limit == -1:
-        accident_df = preprocess_accidents(get_accident_df(spark, replace_cache))
+    if limit is None:
+        accident_df = preprocess_accidents(get_accident_df(spark,
+                                                           replace_cache))
     else:
-        accident_df = preprocess_accidents(get_accident_df(spark, replace_cache)).limit(limit)
+        accident_df = preprocess_accidents(get_accident_df(spark,
+                                                           replace_cache)) \
+                                                           .limit(limit)
 
     road_features_df = get_road_features_df(spark, road_df=road_df)
     match_accident_road = match_accidents_with_roads(road_df, accident_df)

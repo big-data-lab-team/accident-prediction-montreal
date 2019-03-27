@@ -1,6 +1,7 @@
 from os.path import isdir
 from pyspark.sql import SparkSession
 
+
 def raise_parquet_not_del_error(cache):
     ''' Raise an error if cache parquet has not been deleted.
     '''
