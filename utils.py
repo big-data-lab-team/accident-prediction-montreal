@@ -1,5 +1,6 @@
 from os.path import isdir
 from pyspark.sql import SparkSession
+from pyspark import SparkConf
 
 
 def raise_parquet_not_del_error(cache):
@@ -12,7 +13,12 @@ def raise_parquet_not_del_error(cache):
 
 
 def init_spark():
+
+    conf = SparkConf() \
+            .set('spark.executor.memory', '4g') \
+            .set('spark.serializer', 'org.apache.spark.serializer.KryoSerializer') \
+            .set('spark.rdd.compress', 'True')
+
     return (SparkSession
             .builder
-            .appName("Road accidents prediction")
             .getOrCreate())

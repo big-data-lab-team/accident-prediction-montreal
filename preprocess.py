@@ -189,7 +189,7 @@ def get_negative_samples(spark, replace_cache=False, limit=None):
     dates_rdd = generate_dates_df("01/01/2012", "01/01/2017", spark).rdd
     road_df = get_road_df(spark, replace_cache)
 
-    road_features_df = get_road_features_df(spark, road_df=road_df)
+    road_features_df = get_road_features_df(spark, road_df=road_df, replace_cache=replace_cache)
     road_rdd = (road_df.select(['center_long', 'center_lat', 'street_id'])
                        .withColumnRenamed('center_lat', 'loc_lat')
                        .withColumnRenamed('center_long', 'loc_long')
@@ -242,7 +242,7 @@ def get_positive_samples(spark, road_df=None, replace_cache=False, limit=None):
                                                            replace_cache)) \
                                                            .limit(limit)
 
-    road_features_df = get_road_features_df(spark, road_df=road_df)
+    road_features_df = get_road_features_df(spark, road_df=road_df, replace_cache=replace_cache)
     match_accident_road = match_accidents_with_roads(road_df, accident_df)
     accident_with_weather = add_weather_columns(spark, accident_df)
     positive_samples = extract_year_month_day(
