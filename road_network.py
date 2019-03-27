@@ -13,11 +13,13 @@ from pyspark.sql.functions import col, abs, hash, atan2, \
                                   sqrt, cos, sin, radians, \
                                   udf
 from pyspark.sql.types import StringType
+from utils import raise_parquet_not_del_error
+from shutil import rmtree
 
 
-def get_road_df(spark):
+def get_road_df(spark, replace_cache=False):
     fetch_road_network()
-    return extract_road_segments_df(spark)
+    return extract_road_segments_df(spark, replace_cache)
 
 
 def get_road_features_df(spark, road_df=None):
@@ -153,16 +155,22 @@ def get_road_segments_RDD(spark):
             .map(read_doc_from_zip_file))
 
 
-def extract_road_segments_df(spark):
-    save_is_safe = False
-    if os.path.isdir('data/road-network.parquet'):
+def extract_road_segments_df(spark, replace_cache=False):
+    cache = 'data/road-network.parquet'
+    if os.path.isdir(cache):
         print('Skip extraction of road network dataframe: already done,'
               ' reading from file')
         try:
-            return spark.read.parquet('data/road-network.parquet')
-            save_is_safe = True
-        except Exception as e:  # noqa: E722
-            print(e)
+            if replace_cache:
+                print('Deleting cache...')
+                rmtree(cache)
+                raise_parquet_not_del_error(cache)
+            else:
+                return spark.read.parquet(cache)
+        except Exception:
+            print('Failed reading from disk cache')
+            rmtree(cache_path)
+            raise_parquet_not_del_error(cache)
 
     print('Extracting road network dataframe...')
     cols = ['street_name', 'street_type', 'center_long', 'center_lat',
@@ -175,8 +183,7 @@ def extract_road_segments_df(spark):
                                abs(hash(col('center_long'), col('center_lat')))
                                ))
 
-    if save_is_safe:
-        road_seg_df.write.parquet('data/road-network.parquet')
+    road_seg_df.write.parquet(cache)
     print('Extracting road network dataframe done')
     return road_seg_df
 

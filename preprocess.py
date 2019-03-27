@@ -12,6 +12,7 @@ from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
 from os.path import isdir
 from shutil import rmtree
 import datetime
+from utils import raise_parquet_not_del_error, init_spark
 
 
 def preprocess_accidents(accidents_df):
@@ -154,13 +155,6 @@ def match_accidents_with_roads(road_df, accident_df):
             .union(accidents_roads_first_match_with_additional_coords))
 
 
-def init_spark():
-    return (SparkSession
-            .builder
-            .appName("Road accidents prediction")
-            .getOrCreate())
-
-
 def generate_dates_df(start, end, spark):
     ''' Generate all dates and all hours between datetime start and
     datetime end.
@@ -175,36 +169,46 @@ def generate_dates_df(start, end, spark):
     return spark.createDataFrame(dates, ['date', 'hour']).persist()
 
 
-def get_negative_samples(spark, replace_cache=False):
+def get_negative_samples(spark, replace_cache=False, limit=-1):
     cache_path = 'data/negative-samples.parquet'
     if isdir(cache_path):
         try:
             if replace_cache:
                 print('Removing cache...')
                 rmtree(cache_path)
+                raise_parquet_not_del_error(cache_path)
             else:
                 return spark.read.parquet(cache_path)
         except Exception:
             print('Failed reading from disk cache')
             rmtree(cache_path)
+            raise_parquet_not_del_error(cache_path)
 
-    dates_df = generate_dates_df("01/01/2012", "01/01/2017", spark)
-    road_df = get_road_df(spark)
+    dates_rdd = generate_dates_df("01/01/2012", "01/01/2017", spark).rdd
+    road_df = get_road_df(spark, replace_cache)
+
     road_features_df = get_road_features_df(spark, road_df=road_df)
-    road_df = (road_df.select(['center_long', 'center_lat', 'street_id'])
+    road_rdd = (road_df.select(['center_long', 'center_lat', 'street_id'])
                       .withColumnRenamed('center_lat', 'loc_lat')
                       .withColumnRenamed('center_long', 'loc_long')
                       .orderBy(rand())
+                      .rdd
                       .persist())
 
-    negative_samples = (dates_df.rdd
-                                .cartesian(road_df.rdd)
-                                .map(lambda row: row[0] + row[1])
-                                .toDF(['date', 'hour', 'loc_long',
+
+    if limit > 0:
+        sc = spark.sparkContext
+        dates_rdd = sc.parallelize(dates_rdd.take(limit)).persist()
+        road_rdd = sc.parallelize(road_rdd.take(limit)).persist()
+
+
+    negative_samples = (dates_rdd.cartesian(road_rdd)
+                                 .map(lambda row: row[0] + row[1])
+                                 .toDF(['date', 'hour', 'loc_long',
                                        'loc_lat', 'street_id'])
-                                .withColumn('accident_id',
+                                 .withColumn('accident_id',
                                             monotonically_increasing_id())
-                                .persist())
+                                 .persist())
 
     negative_samples = (add_weather_columns(spark, negative_samples)
                         .join(road_features_df, 'street_id'))
@@ -213,22 +217,28 @@ def get_negative_samples(spark, replace_cache=False):
     return negative_samples
 
 
-def get_positive_samples(spark, road_df=None, replace_cache=False):
+def get_positive_samples(spark, road_df=None, replace_cache=False, limit=-1):
     cache_path = 'data/positive-samples.parquet'
     if isdir(cache_path):
         try:
             if replace_cache:
                 rmtree(cache_path)
+                raise_parquet_not_del_error(cache_path)
             else:
                 return spark.read.parquet(cache_path)
         except Exception:
             print('Failed reading from disk cache')
             rmtree(cache_path)
+            raise_parquet_not_del_error(cache_path)
 
     if road_df is None:
-        road_df = get_road_df(spark)
+        road_df = get_road_df(spark, replace_cache)
 
-    accident_df = preprocess_accidents(get_accident_df(spark))
+    if limit == -1:
+        accident_df = preprocess_accidents(get_accident_df(spark, replace_cache))
+    else:
+        accident_df = preprocess_accidents(get_accident_df(spark, replace_cache)).limit(limit)
+
     road_features_df = get_road_features_df(spark, road_df=road_df)
     match_accident_road = match_accidents_with_roads(road_df, accident_df)
     accident_with_weather = add_weather_columns(spark, accident_df)
