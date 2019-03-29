@@ -39,8 +39,7 @@ def match_accidents_with_roads(road_df, accident_df):
     # top nb_top_road_center_preselected closest roads
     road_centers = (road_df
                     .select(['street_id', 'center_long', 'center_lat'])
-                    .drop_duplicates()
-                    .persist())
+                    .drop_duplicates())
 
     accident_window = (Window.partitionBy("accident_id")
                        .orderBy("distance_measure"))
@@ -115,6 +114,8 @@ def match_accidents_with_roads(road_df, accident_df):
                                               'loc_lat', 'loc_long',
                                               'coord_long', 'coord_lat')
                                       .persist())
+    accidents_top_k_roads.unpersist()
+    accidents_roads_first_match.unpersist()
 
     # Add the intermediate points
     street_rolling_window = (Window
@@ -132,6 +133,7 @@ def match_accidents_with_roads(road_df, accident_df):
                  .alias('coord_lat'))
          .union(accidents_close_streets_coords)
          .dropDuplicates())
+    accidents_close_streets_coords.unpersist()
 
     # Recompute distances between accident and new set of points
     # and use closest point to identify street
