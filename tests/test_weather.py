@@ -8,6 +8,9 @@ from weather import get_weather
 import numpy as np
 
 
+"""
+# add pandas arrow before
+
 def test_get_weather():
     test_dict = {
                 'Dew_Point_Temp': 0.358609581839746,
@@ -24,9 +27,11 @@ def test_get_weather():
              .builder
              .appName("Road accidents prediction")
              .getOrCreate())
+
     df = get_accident_df(spark)
     acc = df.filter('NO_SEQ_COLL == "SPVM _ 2015 _ 18203"').collect()[0]
 
-    res_dict = get_weather(1, acc.LOC_LAT, acc.LOC_LONG, 2006, 5, 2, 0)
+    res_dict = get_weather(id=1, lat=acc.LOC_LAT, long=acc.LOC_LONG,
+                           year=2006, month=5, day=2, hour=0)
 
-    assert res_dict == test_dict
+    assert res_dict == test_dict"""

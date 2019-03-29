@@ -18,13 +18,14 @@ from preprocess import preprocess_accidents, \
                     get_positive_samples, get_negative_samples
 import time
 
-"""def test_get_positive_samples():
+
+def test_get_positive_samples():
     spark = init_spark()
     positive_samples = get_positive_samples(spark, road_df=None,
                                             replace_cache=True, limit=10)
     positive_samples.show()
     assert positive_samples.count() > 0
-    return"""
+    return
 
 
 def get_negative_samples_(spark, params):
