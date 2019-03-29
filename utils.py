@@ -16,7 +16,8 @@ def init_spark():
 
     conf = SparkConf() \
             .set('spark.executor.memory', '4g') \
-            .set('spark.serializer', 'org.apache.spark.serializer.KryoSerializer') \
+            .set('spark.serializer',
+                 'org.apache.spark.serializer.KryoSerializer') \
             .set('spark.rdd.compress', 'True')
 
     return (SparkSession

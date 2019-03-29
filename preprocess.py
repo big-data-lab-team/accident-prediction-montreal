@@ -100,22 +100,32 @@ def match_accidents_with_roads(road_df, accident_df):
 
     # If not, we try to get a better match by adding intermediate points on
     # the preselected streets
-
-    # For unsatisfying matches, retrieves the top
-    # nb_top_road_center_preselected streets with their points
-    accidents_close_streets_coords = (accidents_roads_first_match
-                                      .filter(col('distance')
-                                              >= max_distance_accepted)
-                                      .select('accident_id')
-                                      .join(accidents_top_k_roads,
-                                            'accident_id')
-                                      .join(road_df, 'street_id')
-                                      .select('accident_id', 'street_id',
-                                              'loc_lat', 'loc_long',
-                                              'coord_long', 'coord_lat')
-                                      .persist())
-    accidents_top_k_roads.unpersist()
-    accidents_roads_first_match.unpersist()
+    # For unsatisfying matches, recompute the k closests roads
+    # Recomputing is probably faster than reading from disk
+    # cache + joining on accident_ids
+    accidents_close_streets_coords = \
+        (accidents_roads_first_match
+         .filter(col('distance') >= max_distance_accepted)
+         .select('accident_id', 'loc_lat', 'loc_long')
+         .crossJoin(road_centers)
+         .withColumn('distance_inter',
+                     distance_intermediate_formula(
+                                    'loc_lat',
+                                    'loc_long',
+                                    'center_lat',
+                                    'center_long'))
+         .withColumn('distance_measure',
+                     distance_measure())
+         .select('accident_id', 'street_id',
+                 'distance_measure', 'loc_lat', 'loc_long',
+                 rank().over(accident_window)
+                 .alias('distance_rank'))
+         .filter(col('distance_rank') <=
+                 nb_top_road_center_preselected)
+         .drop('distance_measure', 'distance_rank')
+         .join(
+             road_df.select('street_id', 'coord_lat', 'coord_long'),
+             'street_id'))
 
     # Add the intermediate points
     street_rolling_window = (Window
@@ -191,18 +201,18 @@ def get_negative_samples(spark, replace_cache=False, limit=None):
     dates_rdd = generate_dates_df("01/01/2012", "01/01/2017", spark).rdd
     road_df = get_road_df(spark, replace_cache)
 
-    road_features_df = get_road_features_df(spark, road_df=road_df, replace_cache=replace_cache)
+    road_features_df = get_road_features_df(spark, road_df=road_df,
+                                            replace_cache=replace_cache)
     road_rdd = (road_df.select(['center_long', 'center_lat', 'street_id'])
                        .withColumnRenamed('center_lat', 'loc_lat')
                        .withColumnRenamed('center_long', 'loc_long')
                        .orderBy(rand())
                        .rdd)
-    #.persist(pyspark.StorageLevel.MEMORY_AND_DISK))
 
     if limit is not None:
         sc = spark.sparkContext
-        dates_rdd = sc.parallelize(dates_rdd.take(limit)) #.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
-        road_rdd = sc.parallelize(road_rdd.take(limit)) #.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+        dates_rdd = sc.parallelize(dates_rdd.take(limit))
+        road_rdd = sc.parallelize(road_rdd.take(limit))
 
     negative_samples = (dates_rdd.cartesian(road_rdd)
                                  .map(lambda row: row[0] + row[1])
@@ -210,7 +220,6 @@ def get_negative_samples(spark, replace_cache=False, limit=None):
                                        'loc_lat', 'street_id'])
                                  .withColumn('accident_id',
                                              monotonically_increasing_id()))
-    #.persist(pyspark.StorageLevel.MEMORY_AND_DISK))
 
     negative_samples = (add_weather_columns(spark, negative_samples)
                         .join(road_features_df, 'street_id'))
@@ -244,7 +253,8 @@ def get_positive_samples(spark, road_df=None, replace_cache=False, limit=None):
                                                            replace_cache)) \
                                                            .limit(limit)
 
-    road_features_df = get_road_features_df(spark, road_df=road_df, replace_cache=replace_cache)
+    road_features_df = get_road_features_df(spark, road_df=road_df,
+                                            replace_cache=replace_cache)
     match_accident_road = match_accidents_with_roads(road_df, accident_df)
     accident_with_weather = add_weather_columns(spark, accident_df)
     positive_samples = extract_year_month_day(
