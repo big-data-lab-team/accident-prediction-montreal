@@ -186,7 +186,8 @@ def generate_dates_df(start, end, spark):
 
 
 def extract_years(dates_df, year_limit, year_ratio):
-    test_year_values = udf(lambda x: True if x in year_limit else False, BooleanType())
+    test_year_values = udf(lambda x: True if x in year_limit else False,
+                           BooleanType())
     if isinstance(year_limit, tuple):
         return (dates_df.withColumn('year', year(col('date')))
                         .filter(test_year_values(col('year')))

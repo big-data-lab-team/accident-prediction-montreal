@@ -38,16 +38,16 @@ def get_negative_samples_(spark, params):
 
 def test_get_negative_samples():
     spark = init_spark()
-    params = {'replace_cache':True,
-              'road_limit':20,
-              'year_limit':2017,
-              'year_ratio':0.01,
-              'sample_ratio':0.1}
+    params = {'replace_cache': True,
+              'road_limit': 20,
+              'year_limit': 2017,
+              'year_ratio': 0.01,
+              'sample_ratio': 0.1}
 
     nb_samples = 8760 * params['year_ratio'] * params['road_limit']  \
-                        * params['sample_ratio']
+        * params['sample_ratio']
 
-    print("generating", str(nb_samples) , "samples...")
+    print("generating", str(nb_samples), "samples...")
     t = time.time()
     negative_samples = get_negative_samples_(spark, params)
     t = time.time() - t
@@ -58,9 +58,9 @@ def test_get_negative_samples():
     params['year_limit'] = (2012, 2013)
     params['sample_ratio'] = params['sample_ratio'] / 10
     nb_samples = 8760 * 2 * params['year_ratio'] * params['road_limit'] \
-                    * params['sample_ratio']
+        * params['sample_ratio']
 
-    print("generating", str(nb_samples) , "samples...")
+    print("generating", str(nb_samples), "samples...")
     t = time.time()
     negative_samples = get_negative_samples_(spark, params)
     t = time.time() - t
