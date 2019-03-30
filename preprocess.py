@@ -87,8 +87,7 @@ def match_accidents_with_roads(road_df, accident_df):
                                                col('distance_measure')
                                                * (6371 * 2 * 1000))
                                    .drop('distance_rank', 'distance_measure',
-                                         'loc_lat', 'loc_long', 'coord_lat',
-                                         'coord_long')
+                                         'coord_lat', 'coord_long')
                                    .persist())
 
     # If the distance is lower than max_distance_accepted we keep the
