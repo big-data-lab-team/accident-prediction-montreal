@@ -5,8 +5,13 @@ from utils import init_spark
 
 spark = init_spark()
 
-print('testing negatives generation...')
-negative_samples = get_negative_samples(spark, replace_cache=True)
+print('Testing negatives generation...')
+negative_samples = get_negative_samples(spark,
+                                        replace_cache=True,
+                                        road_limit=None,
+                                        year_limit=2017,
+                                        year_ratio=0.5,
+                                        sample_ratio=0.5)
 negative_samples.show()
 
 """print('testing positives generation...')

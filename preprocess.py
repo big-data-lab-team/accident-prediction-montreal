@@ -8,7 +8,8 @@ from road_network import distance_intermediate_formula,\
 from weather import add_weather_columns, extract_year_month_day
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
-                                  rand, monotonically_increasing_id
+                                  rand, monotonically_increasing_id, year, udf
+from pyspark.sql.types import *
 from os.path import isdir
 from shutil import rmtree
 import datetime
@@ -178,10 +179,39 @@ def generate_dates_df(start, end, spark):
         date += datetime.timedelta(days=1)
         for i in range(24):
             dates.append((date.strftime("%Y-%m-%d"), i))
-    return spark.createDataFrame(dates, ['date', 'hour']).persist()
+
+    # .persist(pyspark.StorageLevel.MEMORY_AND_DISK_SR)
+    return spark.createDataFrame(dates, ['date', 'hour'])
 
 
-def get_negative_samples(spark, replace_cache=False, limit=None):
+def extract_years(dates_df, year_limit, year_ratio):
+    test_year_values = udf(lambda x: True if x in year_limit else False,
+                           BooleanType())
+    if isinstance(year_limit, tuple):
+        return (dates_df.withColumn('year', year(col('date')))
+                        .filter(test_year_values(col('year')))
+                        .drop('year')
+                        .sample(year_ratio))
+    elif isinstance(year_limit, int):
+        return (dates_df.withColumn('year', year(col('date')))
+                        .filter(col('year') == year_limit)
+                        .drop('year')
+                        .sample(year_ratio))
+    else:
+        if year_limit is not None:
+            print("Type of year_limit not authorized. Generating everything..")
+        return dates_df.sample(year_ratio)
+
+
+def get_negative_samples(spark, replace_cache=False,
+                         road_limit=None, year_limit=None, year_ratio=None,
+                         sample_ratio=None):
+    """
+    Note to self: 539 293 road, 43 848 generated dates,
+    nb dates for 1 year : 8760
+
+    year_limit: int or tuple of int
+    """
     cache_path = 'data/negative-samples.parquet'
     if isdir(cache_path):
         try:
@@ -197,31 +227,28 @@ def get_negative_samples(spark, replace_cache=False, limit=None):
             rmtree(cache_path)
             raise_parquet_not_del_error(cache_path)
 
-    dates_rdd = generate_dates_df("01/01/2012", "01/01/2017", spark).rdd
     road_df = get_road_df(spark, replace_cache)
-
     road_features_df = get_road_features_df(spark, road_df=road_df,
-                                            replace_cache=replace_cache)
-    road_rdd = (road_df.select(['center_long', 'center_lat', 'street_id'])
-                       .withColumnRenamed('center_lat', 'loc_lat')
-                       .withColumnRenamed('center_long', 'loc_long')
-                       .orderBy(rand())
-                       .rdd)
+                                            replace_cache=False)
+    road_df = (road_df.select(['center_long', 'center_lat', 'street_id'])
+                      .withColumnRenamed('center_lat', 'loc_lat')
+                      .withColumnRenamed('center_long', 'loc_long'))
 
-    if limit is not None:
-        sc = spark.sparkContext
-        dates_rdd = sc.parallelize(dates_rdd.take(limit))
-        road_rdd = sc.parallelize(road_rdd.take(limit))
+    dates_df = generate_dates_df("01/01/2012", "31/12/2017", spark)
+    dates_df = extract_years(dates_df, year_limit, year_ratio)
 
-    negative_samples = (dates_rdd.cartesian(road_rdd)
-                                 .map(lambda row: row[0] + row[1])
-                                 .toDF(['date', 'hour', 'loc_long',
-                                       'loc_lat', 'street_id'])
-                                 .withColumn('accident_id',
-                                             monotonically_increasing_id()))
+    if road_limit is not None:
+        road_df = road_df.limit(road_limit)
+
+    negative_samples = (dates_df.crossJoin(road_df)
+                                .withColumn('accident_id',
+                                            monotonically_increasing_id()))
 
     negative_samples = (add_weather_columns(spark, negative_samples)
                         .join(road_features_df, 'street_id'))
+
+    if sample_ratio is not None:
+        negative_samples = negative_samples.sample(sample_ratio)
 
     negative_samples.write.parquet(cache_path)
     return negative_samples

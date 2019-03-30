@@ -12,7 +12,7 @@ script:
     - export PYTHONPATH=${PYTHONPATH}:${PWD}
     - export PYSPARK_PYTHON=~/virtualenv/python3.6/bin/python
     - pycodestyle *.py tests/*.py
-    - pytest
+    - travis_wait 110 pytest -s
 
 after_success:
     - coveralls
