@@ -10,8 +10,8 @@ negative_samples = get_negative_samples(spark,
                                         replace_cache=True,
                                         road_limit=None,
                                         year_limit=2017,
-                                        year_ratio=0.5,
-                                        sample_ratio=0.5)
+                                        year_ratio=None,
+                                        sample_ratio=0.0001)
 negative_samples.show()
 
 """print('testing positives generation...')

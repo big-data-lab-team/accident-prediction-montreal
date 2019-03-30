@@ -18,7 +18,8 @@ def init_spark():
             .set('spark.executor.memory', '4g') \
             .set('spark.serializer',
                  'org.apache.spark.serializer.KryoSerializer') \
-            .set('spark.rdd.compress', 'True')
+            .set('spark.rdd.compress', 'True') \
+            .set('spark.eventLog.enabled', 'True')
 
     return (SparkSession
             .builder

@@ -187,20 +187,21 @@ def generate_dates_df(start, end, spark):
 def extract_years(dates_df, year_limit, year_ratio):
     test_year_values = udf(lambda x: True if x in year_limit else False,
                            BooleanType())
-    if isinstance(year_limit, tuple):
-        return (dates_df.withColumn('year', year(col('date')))
+    if year_limit is not None and isinstance(year_limit, tuple):
+        dates_df = (dates_df.withColumn('year', year(col('date')))
                         .filter(test_year_values(col('year')))
-                        .drop('year')
-                        .sample(year_ratio))
-    elif isinstance(year_limit, int):
-        return (dates_df.withColumn('year', year(col('date')))
+                        .drop('year'))
+    elif year_limit is not None and isinstance(year_limit, int):
+        dates_df = (dates_df.withColumn('year', year(col('date')))
                         .filter(col('year') == year_limit)
-                        .drop('year')
-                        .sample(year_ratio))
+                        .drop('year'))
     else:
         if year_limit is not None:
             print("Type of year_limit not authorized. Generating everything..")
+    if year_ratio is not None:
         return dates_df.sample(year_ratio)
+    else:
+        return dates_df
 
 
 def get_negative_samples(spark, replace_cache=False,
