@@ -221,10 +221,11 @@ def add_weather_columns(spark, samples):
 
 def get_useful_stations_id_df(spark, accident_df):
     ''' Generate dataframe with the station ids of all stations necessary for
-    given accident dataframe
+        given accident dataframe
     '''
     cache_file = 'data/weather_stations_id.parquet'
     if isdir(cache_file):
+        print('Skip downloading weather station ids: already done')
         return spark.read.parquet(cache_file)
 
     # once it works we can refactor get_stations to give only the id
@@ -242,8 +243,85 @@ def get_useful_stations_id_df(spark, accident_df):
                 dayofmonth('date')
                 ).alias('stations'))
           .select(explode(col('stations')))
-          .select(col('col')['station_id'])
+          .select(col('col')['station_id'].alias('station_id'))
           .distinct())
 
     df.write.parquet(cache_file)
+    return df
+
+
+def get_station_weather_month(station_id, year, month):
+    ''' Fetch the weather data for a given station (given its station ID) and a
+        given month
+    '''
+    url = (f'http://climate.weather.gc.ca/climate_data/bulk_data_e.html?'
+           f'format=csv&stationID={station_id}&Year={year}'
+           f'&Month={month}&Day=14&'
+           f'timeframe=1&submit=Download+Data')
+    df = get_pandas_dataframe(url)[['Day', 'Time']+COLUMNS_USED]
+    return [(
+        int(r['Day']),
+        int(r['Time'].split(':')[0]),
+        float(r['Dew Point Temp (°C)']),
+        float(r['Rel Hum (%)']),
+        float(r['Wind Dir (10s deg)']),
+        float(r['Wind Spd (km/h)']),
+        float(r['Visibility (km)']),
+        float(r['Stn Press (kPa)']),
+        float(r['Hmdx']),
+        float(r['Wind Chill']),
+        float(r['Temp (°C)'])
+    ) for i, r in df.iterrows()]
+
+
+def get_weather_stations_df(spark, stations_id):
+    ''' Download the weather station data during all hours of
+        the 5 years for given station ids and return a dataframe
+    '''
+    cache_file = 'data/weather_stations.parquet'
+    if isdir(cache_file):
+        print('Skip downloading weather station: already done')
+        return spark.read.parquet(cache_file)
+
+    get_station_weather_month_udf = \
+        udf(get_station_weather_month, ArrayType(StructType([
+            StructField('day', IntegerType()),
+            StructField('hour', IntegerType()),
+            StructField('dew_point_temp', FloatType()),
+            StructField('rel_hum', FloatType()),
+            StructField('wind_dir', FloatType()),
+            StructField('wind_spd', FloatType()),
+            StructField('visibility', FloatType()),
+            StructField('stn_press', FloatType()),
+            StructField('hmdx', FloatType()),
+            StructField('wind_chill', FloatType()),
+            StructField('temp', FloatType())
+        ])))
+
+    month_per_year_df = spark.createDataFrame(zip(range(1, 13),), ['month'])
+    years_df = spark.createDataFrame(zip(range(2012, 2018),), ['year'])
+    months_df = years_df.crossJoin(month_per_year_df)
+    stations_months_df = stations_id.crossJoin(months_df)
+
+    c = col('col')
+    df = (stations_months_df
+          .withColumn('weather', get_station_weather_month_udf('station_id',
+                                                               'year',
+                                                               'month'))
+          .select('station_id', 'year', 'month', explode('weather'))
+          .select('station_id', 'year', 'month',
+                  c['day'].alias('day'),
+                  c['hour'].alias('hour'),
+                  c['dew_point_temp'].alias('dew_point_temp'),
+                  c['rel_hum'].alias('rel_hum'),
+                  c['wind_dir'].alias('wind_dir'),
+                  c['wind_spd'].alias('wind_spd'),
+                  c['visibility'].alias('visibility'),
+                  c['stn_press'].alias('stn_press'),
+                  c['hmdx'].alias('hmdx'),
+                  c['wind_chill'].alias('wind_chill'),
+                  c['temp'].alias('temp')))
+
+    df.write.parquet(cache_file)
+
     return df

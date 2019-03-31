@@ -9,5 +9,4 @@ spark = init_spark()
 
 accident_df = preprocess_accidents(get_accident_df(spark, False))
 
-(get_useful_stations_id_df(spark, accident_df)
-    .write.parquet('data/weather_stations_id.parquet'))
+get_useful_stations_id_df(spark, accident_df)
