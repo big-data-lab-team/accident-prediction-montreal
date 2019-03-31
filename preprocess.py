@@ -189,12 +189,12 @@ def extract_years(dates_df, year_limit, year_ratio):
                            BooleanType())
     if year_limit is not None and isinstance(year_limit, tuple):
         dates_df = (dates_df.withColumn('year', year(col('date')))
-                        .filter(test_year_values(col('year')))
-                        .drop('year'))
+                    .filter(test_year_values(col('year')))
+                    .drop('year'))
     elif year_limit is not None and isinstance(year_limit, int):
         dates_df = (dates_df.withColumn('year', year(col('date')))
-                        .filter(col('year') == year_limit)
-                        .drop('year'))
+                    .filter(col('year') == year_limit)
+                    .drop('year'))
     else:
         if year_limit is not None:
             print("Type of year_limit not authorized. Generating everything..")

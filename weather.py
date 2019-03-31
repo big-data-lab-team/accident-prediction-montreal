@@ -6,13 +6,16 @@ from requests import get
 from io import StringIO
 from pyspark.sql import Row
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import udf, col, year, month, dayofmonth
-from pyspark.sql.types import StructField, FloatType, StructType
+from pyspark.sql.functions import udf, col, year, month, dayofmonth, \
+                                  explode
+from pyspark.sql.types import StructField, FloatType, StructType, \
+                              IntegerType, ArrayType
 import numpy as np
 import time
 import shutil
 import math
 import os
+from utils import get_with_retry as get
 
 COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Rel Hum (%)',
@@ -127,6 +130,7 @@ def get_stations(lat, long, year, month, day):
            f'txtCentralLongMin={long[1]}&txtCentralLongSec={long[2]:.1f}&'
            f'StartYear=1840&EndYear=2019&optLimit=specDate&Year={year}&'
            f'Month={month}&Day={day}&selRowPerPage=100')
+    print(url)
     try:
         page = BeautifulSoup(get(url).content, 'lxml')
         stations = (page.body.main
@@ -213,3 +217,33 @@ def add_weather_columns(spark, samples):
     return spark.createDataFrame(
             samples.rdd.map(add_weather_to_row),
             df_schema).drop('year', 'month', 'day')
+
+
+def get_useful_stations_id_df(spark, accident_df):
+    ''' Generate dataframe with the station ids of all stations necessary for
+    given accident dataframe
+    '''
+    cache_file = 'data/weather_stations_id.parquet'
+    if isdir(cache_file):
+        return spark.read.parquet(cache_file)
+
+    # once it works we can refactor get_stations to give only the id
+    get_stations_udf = udf(get_stations, ArrayType(StructType([
+        StructField('station_id', IntegerType()),
+        StructField('station_dist', FloatType())
+    ])))
+
+    df = (accident_df
+          .select(get_stations_udf(
+                col('loc_lat'),
+                col('loc_long'),
+                year('date'),
+                month('date'),
+                dayofmonth('date')
+                ).alias('stations'))
+          .select(explode(col('stations')))
+          .select(col('col')['station_id'])
+          .distinct())
+
+    df.write.parquet(cache_file)
+    return df
