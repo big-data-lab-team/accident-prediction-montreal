@@ -1,20 +1,20 @@
 from bs4 import BeautifulSoup
+import datetime
 import pandas as pd
+from io import StringIO
+import math
+import numpy as np
 from os import mkdir
 from os.path import isdir, isfile
-from requests import get
-from io import StringIO
-from pyspark.sql import Row
-from pyspark.sql import SparkSession
+from pyspark.sql import Row, SparkSession
 from pyspark.sql.functions import udf, col, year, month, dayofmonth, \
                                   explode
 from pyspark.sql.types import StructField, FloatType, StructType, \
-                              IntegerType, ArrayType
-import numpy as np
-import time
+                              IntegerType, ArrayType, DateType
+import re
+from requests import get
 import shutil
-import math
-import os
+import time
 from utils import get_with_retry as get
 
 COLUMNS_USED = ['Dew Point Temp (°C)',
@@ -130,7 +130,6 @@ def get_stations(lat, long, year, month, day):
            f'txtCentralLongMin={long[1]}&txtCentralLongSec={long[2]:.1f}&'
            f'StartYear=1840&EndYear=2019&optLimit=specDate&Year={year}&'
            f'Month={month}&Day={day}&selRowPerPage=100')
-    print(url)
     try:
         page = BeautifulSoup(get(url).content, 'lxml')
         stations = (page.body.main
@@ -162,6 +161,17 @@ def degree_to_DMS(degree):
     '''
     return (int(degree), int(60 * (abs(degree) % 1)),
             ((60 * (abs(degree) % 1)) % 1) * 60)
+
+
+def DMS_to_degree(coord):
+    match = re.match(
+        " ([0-9]{1,2})°([0-9]{1,2})'([0-9]{1,2}\\.[0-9]{1,3})\" [NSWE]", coord)
+    if match is None:
+        raise ValueError('Invalid GPS coordinate')
+    d = int(match[1])
+    m = int(match[2])
+    s = float(match[3])
+    return d + m / 60 + s / 3600
 
 
 def skip_header(file):
@@ -219,7 +229,7 @@ def add_weather_columns(spark, samples):
             df_schema).drop('year', 'month', 'day')
 
 
-def get_useful_stations_id_df(spark, accident_df):
+def get_weather_station_id_df(spark, accident_df):
     ''' Generate dataframe with the station ids of all stations necessary for
         given accident dataframe
     '''
@@ -274,7 +284,7 @@ def get_station_weather_month(station_id, year, month):
     ) for i, r in df.iterrows()]
 
 
-def get_weather_stations_df(spark, stations_id):
+def get_weather_station_weather_df(spark, stations_id):
     ''' Download the weather station data during all hours of
         the 5 years for given station ids and return a dataframe
     '''
@@ -304,13 +314,17 @@ def get_weather_stations_df(spark, stations_id):
     stations_months_df = stations_id.crossJoin(months_df)
 
     c = col('col')
+    def create_date(year, month, day):
+        return datetime.datetime.strptime(f'{year}-{month}-{day}', "%Y-%m-%d")
+    create_date_udf = udf(create_date, DateType())
+
     df = (stations_months_df
           .withColumn('weather', get_station_weather_month_udf('station_id',
                                                                'year',
                                                                'month'))
           .select('station_id', 'year', 'month', explode('weather'))
-          .select('station_id', 'year', 'month',
-                  c['day'].alias('day'),
+          .select('station_id',
+                  create_date_udf('year', 'month', c['day']).alias('date'),
                   c['hour'].alias('hour'),
                   c['dew_point_temp'].alias('dew_point_temp'),
                   c['rel_hum'].alias('rel_hum'),
@@ -325,3 +339,58 @@ def get_weather_stations_df(spark, stations_id):
     df.write.parquet(cache_file)
 
     return df
+
+
+def get_weather_station_coords(station_id):
+    ''' Download the GPS coordinates for each given station id and return
+        a dataframe with the columns: station_id, lat and long
+    '''
+    year, month = 2013, 1
+
+    url = (f'http://climate.weather.gc.ca/climate_data/hourly_data_e.html?'
+           f'timeframe=1&Year={year}&Month={month}&Day=14&'
+           f'StationID={station_id}&Prov=QC&urlExtension=_e.html&'
+           f'searchType=stnProv&optLimit=specDate&StartYear=1840&EndYear=2019&'
+           f'lstProvince=QC')
+    web_page = BeautifulSoup(get(url).content, 'lxml')
+    coords_div = web_page.body.find('div', class_='metadata').div
+    lat = coords_div.div.div.find_all('div', recursive=False)[1].text
+    long = (coords_div.find_all('div', recursive=False)[1].div
+            .find_all('div', recursive=False)[1].text)
+    return DMS_to_degree(lat), DMS_to_degree(long)
+
+
+def get_weather_station_coords_df(spark, stations_id):
+    cache_file = 'data/station_coords.parquet'
+    if isdir(cache_file):
+        print('Skip downloading weather station coordinates: already done')
+        return spark.read.parquet(cache_file)
+
+    get_weather_station_coords_udf = udf(
+            get_weather_station_coords,
+            StructType([
+                StructField('lat', FloatType()),
+                StructField('long', FloatType())
+            ]))
+    df = (stations_id
+          .withColumn('coords', get_weather_station_coords_udf('station_id'))
+          .select(
+            'station_id',
+            col('coords')['lat'].alias('station_lat'),
+            col('coords')['long'].alias('station_long')
+          ))
+
+    df.write.parquet(cache_file)
+
+    return df
+
+
+def get_weather_df(spark, accident_df):
+    ''' Combine weather information and return a dataframe with the weather
+        data for all useful weather station for each hour of the 5 years and
+        the stations GPS coordinates
+    '''
+    stations_id_df = get_weather_station_id_df(spark, accident_df)
+    stations_coord_df = get_weather_station_coords_df(spark, stations_id_df)
+    stations_weather_df = get_weather_station_weather_df(spark, stations_id_df)
+    return stations_weather_df.join(stations_coord_df, 'station_id')
