@@ -5,10 +5,11 @@ from road_network import distance_intermediate_formula,\
                          distance_measure,\
                          get_road_features_df,\
                          get_road_df
-from weather import add_weather_columns, extract_year_month_day
+from weather import get_weather_df
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
-                                  rand, monotonically_increasing_id, year, udf
+                                  rand, monotonically_increasing_id, year, \
+                                  udf, when, isnan
 from pyspark.sql.types import *
 from os.path import isdir
 from shutil import rmtree
@@ -189,12 +190,12 @@ def extract_years(dates_df, year_limit, year_ratio):
                            BooleanType())
     if year_limit is not None and isinstance(year_limit, tuple):
         dates_df = (dates_df.withColumn('year', year(col('date')))
-                        .filter(test_year_values(col('year')))
-                        .drop('year'))
+                    .filter(test_year_values(col('year')))
+                    .drop('year'))
     elif year_limit is not None and isinstance(year_limit, int):
         dates_df = (dates_df.withColumn('year', year(col('date')))
-                        .filter(col('year') == year_limit)
-                        .drop('year'))
+                    .filter(col('year') == year_limit)
+                    .drop('year'))
     else:
         if year_limit is not None:
             print("Type of year_limit not authorized. Generating everything..")
@@ -206,9 +207,10 @@ def extract_years(dates_df, year_limit, year_ratio):
 
 workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal"
 
-def get_negative_samples(spark, replace_cache=False,
-                         road_limit=None, year_limit=None, year_ratio=None,
-                         sample_ratio=None):
+
+def get_negative_samples(spark, replace_cache=False, road_limit=None,
+                         year_limit=None, year_ratio=None, weather_df=None,
+                         sample_ratio=None, accident_df=None):
     """
     Note to self: 539 293 road, 43 848 generated dates,
     nb dates for 1 year : 8760
@@ -243,22 +245,30 @@ def get_negative_samples(spark, replace_cache=False,
     if road_limit is not None:
         road_df = road_df.limit(road_limit)
 
-    negative_samples = (dates_df.crossJoin(road_df)
-                                .withColumn('accident_id',
-                                            monotonically_increasing_id()))
-
-    negative_samples = (add_weather_columns(spark, negative_samples)
-                        .join(road_features_df, 'street_id'))
+    negative_samples = (dates_df.crossJoin(road_df))
 
     if sample_ratio is not None:
         negative_samples = negative_samples.sample(sample_ratio)
 
+    negative_samples = \
+        negative_samples.withColumn('accident_id',
+                                    monotonically_increasing_id())
+    accident_df = preprocess_accidents(accident_df or get_accident_df(spark))
+    weather_df = weather_df or get_weather_df(spark, accident_df)
+    negative_sample_weather = \
+        get_weather_information(negative_samples, weather_df)
+    negative_samples = (negative_samples
+                        .join(road_features_df, 'street_id')
+                        .join(negative_sample_weather, 'accident_id'))
+
     negative_samples.write.parquet(cache_path)
+
     return negative_samples
 
 
-def get_positive_samples(spark, road_df=None, replace_cache=False, limit=None):
-    cache_path = 'data/positive-samples.parquet'
+def get_positive_samples(spark, road_df=None, weather_df=None,
+                         replace_cache=False, limit=None):
+    cache_path = workdir + '/data/positive-samples.parquet'
     if isdir(cache_path):
         try:
             if replace_cache:
@@ -271,8 +281,7 @@ def get_positive_samples(spark, road_df=None, replace_cache=False, limit=None):
             rmtree(cache_path)
             raise_parquet_not_del_error(cache_path)
 
-    if road_df is None:
-        road_df = get_road_df(spark, replace_cache)
+    road_df = road_df or get_road_df(spark, replace_cache)
 
     if limit is None:
         accident_df = preprocess_accidents(get_accident_df(spark,
@@ -282,14 +291,55 @@ def get_positive_samples(spark, road_df=None, replace_cache=False, limit=None):
                                                            replace_cache)) \
                                                            .limit(limit)
 
+    weather_df = weather_df or get_weather_df(spark, accident_df)
     road_features_df = get_road_features_df(spark, road_df=road_df,
                                             replace_cache=replace_cache)
     match_accident_road = match_accidents_with_roads(road_df, accident_df)
-    accident_with_weather = add_weather_columns(spark, accident_df)
-    positive_samples = extract_year_month_day(
-            accident_with_weather
-            .join(match_accident_road, 'accident_id')
-            .join(road_features_df, 'street_id'))
+    accident_weather = get_weather_information(accident_df, weather_df)
+    positive_samples = (accident_df
+                        .join(accident_weather, 'accident_id')
+                        .join(match_accident_road, 'accident_id')
+                        .join(road_features_df, 'street_id'))
 
     positive_samples.write.parquet(cache_path)
     return positive_samples
+
+
+def get_weather_information(samples, weather_df):
+    '''Add weather coloumn to samples dataframe. '''
+    p = 1
+    weather_cols = list(set(weather_df.columns)
+                        - set(['station_id', 'hour', 'station_lat',
+                               'station_long', 'date']))
+    weighted_weather_cols = [
+        when(isnan(col(c)), 0).otherwise(col('inv_dist_to_station')*col(c))
+        .alias(c+'_weighted') for c in weather_cols
+        ]
+    coeffs_weather_cols = [
+        when(isnan(col(c)), 0)
+        .otherwise(col('inv_dist_to_station')).alias(c+'_coeff')
+        for c in weather_cols
+        ]
+    weighted_weather_cols_name = [c+'_weighted' for c in weather_cols]
+    coeffs_weather_cols_name = [c+'_coeff' for c in weather_cols]
+    final_weather_cols = [
+        (col(f'sum({c}_weighted)')/col(f'sum({c}_coeff)')).alias(c)
+        for c in weather_cols
+        ]
+
+    return (samples
+            .join(weather_df, on=['date', 'hour'])
+            .withColumn('distance_inter',
+                        distance_intermediate_formula(
+                                        'loc_lat',
+                                        'loc_long',
+                                        'station_lat',
+                                        'station_long'))
+            .withColumn('dist_to_station',
+                        distance_measure()*(6371 * 2 * 1000))
+            .withColumn('inv_dist_to_station', 1/col('dist_to_station')**p)
+            .select('accident_id',
+                    *(weighted_weather_cols + coeffs_weather_cols))
+            .groupBy('accident_id')
+            .sum(*(weighted_weather_cols_name + coeffs_weather_cols_name))
+            .select('accident_id', *final_weather_cols))
