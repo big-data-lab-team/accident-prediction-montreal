@@ -9,11 +9,13 @@ import os
 from pyspark.sql.types import StringType, BooleanType, IntegerType, \
         FloatType, StructType, StructField, DataType
 from pyspark.sql.functions import monotonically_increasing_id
+from utils import raise_parquet_not_del_error
+from shutil import rmtree
 
 
-def get_accident_df(spark):
+def get_accident_df(spark, replace_cache=False):
     fetch_accidents_montreal()
-    return extract_accidents_montreal_df(spark)
+    return extract_accidents_montreal_df(spark, replace_cache)
 
 
 def fetch_accidents_montreal():
@@ -40,14 +42,25 @@ def fetch_accidents_montreal():
         print('Unable to find montreal accidents dataset.')
 
 
-def extract_accidents_montreal_df(spark):
-    if os.path.isdir('data/accidents-montreal.parquet'):
+def extract_accidents_montreal_df(spark, replace_cache=False):
+    cache = 'data/accidents-montreal.parquet'
+    if os.path.isdir(cache) or os.path.isfile(cache):
         print('Skip extraction of accidents montreal dataframe:'
               ' already done, reading from file')
         try:
-            return spark.read.parquet('data/accidents-montreal.parquet')
-        except:  # noqa: E722
-            pass
+            if replace_cache:
+                print('Deleting cache...')
+                if os.path.isdir(cache):
+                    rmtree(cache)
+                else:
+                    os.remove(cache)
+                raise_parquet_not_del_error(cache)
+            else:
+                return spark.read.parquet(cache)
+        except Exception:
+            print('Failed reading from disk cache')
+            rmtree(cache)
+            raise_parquet_not_del_error(cache)
 
     # We read directly from ZIP to avoid disk IO
     file = (BytesIO(ZipFile('data/accidents-montreal.zip', 'r')
@@ -68,5 +81,5 @@ def extract_accidents_montreal_df(spark):
     sch = StructType(fields)
     df = (spark.createDataFrame(data=pddf, schema=sch).repartition(200)
           .withColumn('ACCIDENT_ID', monotonically_increasing_id()))
-    df.write.parquet('data/accidents-montreal.parquet')
+    df.write.parquet(cache)
     return df
