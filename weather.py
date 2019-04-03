@@ -86,10 +86,12 @@ def get_pandas_dataframe(url):
     return df
 
 
+workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal"
+
 def get_station_weather(station_id, year, month, day, hour):
     ''' Get temperature for a given station (given its station ID).
     '''
-    cache_file_path = f'data/weather/s{station_id}_{year}_{month}.parquet'
+    cache_file_path = workdir + '/data/weather/s{0}_{1}_{2}.parquet'.format(station_id, year, month)
 
     if isfile(cache_file_path):
         df = pd.read_parquet(cache_file_path)

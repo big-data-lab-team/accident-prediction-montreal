@@ -15,7 +15,7 @@ def raise_parquet_not_del_error(cache):
 def init_spark():
 
     conf = SparkConf() \
-            .set('spark.executor.memory', '4g') \
+            .set('spark.executor.memory', '5g') \
             .set('spark.serializer',
                  'org.apache.spark.serializer.KryoSerializer') \
             .set('spark.rdd.compress', 'True') \

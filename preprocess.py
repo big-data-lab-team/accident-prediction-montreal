@@ -204,6 +204,8 @@ def extract_years(dates_df, year_limit, year_ratio):
         return dates_df
 
 
+workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal"
+
 def get_negative_samples(spark, replace_cache=False,
                          road_limit=None, year_limit=None, year_ratio=None,
                          sample_ratio=None):
@@ -213,7 +215,7 @@ def get_negative_samples(spark, replace_cache=False,
 
     year_limit: int or tuple of int
     """
-    cache_path = 'data/negative-samples.parquet'
+    cache_path = workdir + '/data/negative-samples.parquet'
     if isdir(cache_path):
         try:
             if replace_cache:
