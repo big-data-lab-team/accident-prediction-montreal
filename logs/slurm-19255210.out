@@ -1,0 +1,25 @@
+starting org.apache.spark.deploy.master.Master, logging to /home/tguedon/.spark/2.3.0/log/spark-19255210-org.apache.spark.deploy.master.Master-1-cdr560.out
+master url :  spark://cdr560.int.cedar.computecanada.ca:7077 spark://cdr560.int.cedar.computecanada.ca:7077
+srun: error: cdr631: task 1: Exited with exit code 1
+srun: Terminating job step 19255210.1
+srun: error: cdr692: task 2: Terminated
+srun: error: cdr621: task 0: Terminated
+srun: Force Terminated job step 19255210.1
+Traceback (most recent call last):
+  File "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main.py", line 2, in <module>
+    from road_network import get_road_df
+  File "/project/6003600/tguedon/accident-prediction-montreal/road_network.py", line 7, in <module>
+    from bs4 import BeautifulSoup
+ModuleNotFoundError: No module named 'bs4'
+19/04/06 15:05:45 INFO ShutdownHookManager: Shutdown hook called
+Shutdown hook called
+19/04/06 15:05:45 INFO ShutdownHookManager: Deleting directory /tmp/spark-3eb86072-058d-45ad-a223-8e3d55522580
+Deleting directory /tmp/spark-3eb86072-058d-45ad-a223-8e3d55522580
+srun: error: cdr560: task 0: Exited with exit code 1
+srun: Terminating job step 19255210.0
+srun: error: cdr560: task 0: Exited with exit code 1
+srun: error: Task 0 reported exit for a second time.
+srun: error: cdr560: task 0: Exited with exit code 1
+srun: error: Task 0 reported exit for a second time.
+/var/spool/slurmd/job19255210/slurm_script: line 42: kill: (167916) - No such process
+stopping org.apache.spark.deploy.master.Master
