@@ -28,16 +28,21 @@ export SLURM_SPARK_MEM=$(printf "%.0f" $((${SLURM_MEM_PER_NODE} *95/100)))
 start-master.sh
 sleep 20
 
+MASTER_URL_STRING=$(grep -Po '(?=spark://).*' $SPARK_LOG_DIR/spark-${SPARK_IDENT_STRING}-org.apache.spark.deploy.master*.out)
 
-echo "this thing: " $SPARK_LOG_DIR/spark-${SPARK_IDENT_STRING}-org.apache.spark.deploy.master*.out
-
-#MASTER_URL=$(grep -Po '(?=spark://).*' $SPARK_LOG_DIR/spark-${SPARK_IDENT_STRING}-org.apache.spark.deploy.master*.out)
-
-'
-echo "master url : " ${MASTER_URL}
+IFS=' '
+read -ra MASTER_URL <<< "$MASTER_URL_STRING"
+echo "master url :" ${MASTER_URL}
 
 NWORKERS=$((SLURM_NTASKS - 1))
-SPARK_NO_DAEMONIZE=1 srun -n ${NWORKERS} -N ${NWORKERS} --label --output=$SPARK_LOG_DIR/spark-%j-workers.out start-slave.sh -m ${SLURM_SPARK_MEM}M -c ${SLURM_CPUS_PER_TASK} ${MASTER_URL} &
+
+echo "----->" ${NWORKERS}
+echo "----->" ${SPARK_LOG_DIR}
+echo "----->" ${SLURM_CPUS_PER_TASK}
+echo "----->" ${MASTER_URL}
+echo "----->" ${SLURM_SPARK_MEM}
+
+SPARK_NO_DAEMONIZE=1 srun -n ${NWORKERS} -N ${NWORKERS} --label --output=$SPARK_LOG_DIR/spark-%j-workers.out start-slave.sh -m ${SLURM_SPARK_MEM} -c ${SLURM_CPUS_PER_TASK} ${MASTER_URL} &
 slaves_pid=$!
 
 acc=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/accidents_montreal.py
@@ -46,8 +51,7 @@ weather=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/
 preprocess=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/preprocess.py
 utils=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/utils.py
 
-srun -n 1 -N 1 spark-submit /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main.py --master ${MASTER_URL} --py-files ${acc} ${road} ${weather} ${preprocess} ${utils} --executor-memory ${SLURM_SPARK_MEM}M
+srun -n 1 -N 1 spark-submit /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main.py --master ${MASTER_URL} --executor-memory ${SLURM_SPARK_MEM} --py-files ${acc} ${road} ${weather} ${preprocess} ${utils}
 
 kill $slaves_pid
-'
 stop-master.sh

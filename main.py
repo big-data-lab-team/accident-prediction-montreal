@@ -5,6 +5,7 @@ from utils import init_spark
 
 spark = init_spark()
 
+
 print('Testing negatives generation...')
 #539 293 * 43 848 = 23 646 919 464
 #sample size wanted = ~100 000 => 0.00001
@@ -16,9 +17,10 @@ negative_samples = get_negative_samples(spark,
                                         year_ratio=None,
                                         sample_ratio=0.0001)
 negative_samples.show()
+print("NUMBER GENERATED : ", negative_samples.count())
 
 """
 print('testing positives generation...')
 positive_samples = get_positive_samples(spark, replace_cache=True, limit=100)
-positive_samples.show()
+
 """
