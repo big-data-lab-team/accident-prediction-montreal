@@ -13,9 +13,9 @@ print('Testing negatives generation...')
 negative_samples = get_negative_samples(spark,
                                         replace_cache=False,
                                         road_limit=None,
-                                        year_limit=2017,
+                                        year_limit=None,
                                         year_ratio=None,
-                                        sample_ratio=0.0001)
+                                        sample_ratio=0.00001)
 negative_samples.show()
 print("NUMBER GENERATED : ", negative_samples.count())
 

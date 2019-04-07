@@ -6,10 +6,10 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 #SBATCH --account=def-glatard
-#SBATCH --time=00:05:00
+#SBATCH --time=00:40:00
 #SBATCH --nodes=4
 #SBATCH --ntasks=4
-#SBATCH --mem=4G
+#SBATCH --mem=10G
 #SBATCH --cpus-per-task=8
 #SBATCH --ntasks-per-node=1
 
@@ -42,7 +42,7 @@ echo "----->" ${SLURM_CPUS_PER_TASK}
 echo "----->" ${MASTER_URL}
 echo "----->" ${SLURM_SPARK_MEM}
 
-SPARK_NO_DAEMONIZE=1 srun -n ${NWORKERS} -N ${NWORKERS} --label --output=$SPARK_LOG_DIR/spark-%j-workers.out start-slave.sh -m ${SLURM_SPARK_MEM} -c ${SLURM_CPUS_PER_TASK} ${MASTER_URL} &
+SPARK_NO_DAEMONIZE=1 srun -n ${NWORKERS} -N ${NWORKERS} --label --output=$SPARK_LOG_DIR/spark-%j-workers.out start-slave.sh -m ${SLURM_SPARK_MEM}M -c ${SLURM_CPUS_PER_TASK} ${MASTER_URL} &
 slaves_pid=$!
 
 acc=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/accidents_montreal.py
@@ -51,7 +51,7 @@ weather=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/
 preprocess=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/preprocess.py
 utils=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/utils.py
 
-srun -n 1 -N 1 spark-submit /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main.py --master ${MASTER_URL} --executor-memory ${SLURM_SPARK_MEM} --py-files ${acc} ${road} ${weather} ${preprocess} ${utils}
+srun -n 1 -N 1 spark-submit --master ${MASTER_URL} --executor-memory ${SLURM_SPARK_MEM}M /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main.py --py-files ${acc} ${road} ${weather} ${preprocess} ${utils}
 
 kill $slaves_pid
 stop-master.sh

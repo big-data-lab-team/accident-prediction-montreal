@@ -18,7 +18,6 @@ def raise_parquet_not_del_error(cache):
 def init_spark():
 
     conf = SparkConf() \
-            .set('spark.executor.memory', '5g') \
             .set('spark.serializer',
                  'org.apache.spark.serializer.KryoSerializer') \
             .set('spark.rdd.compress', 'True') \
@@ -27,6 +26,8 @@ def init_spark():
     return (SparkSession
             .builder
             .getOrCreate())
+
+# .set('spark.executor.memory', '5g') \
 
 
 def get_with_retry(
