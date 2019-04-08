@@ -1,0 +1,20 @@
+starting org.apache.spark.deploy.master.Master, logging to /home/tguedon/.spark/2.3.0/log/spark-19255976-org.apache.spark.deploy.master.Master-1-cdr654.out
+this thing:  /home/tguedon/.spark/2.3.0/log/spark-19255976-org.apache.spark.deploy.master.Master-1-cdr654.out
+/var/spool/slurmd/job19255976/slurm_script: line 52: 
+echo "master url : " ${MASTER_URL}
+
+NWORKERS=$((SLURM_NTASKS - 1))
+SPARK_NO_DAEMONIZE=1 srun -n ${NWORKERS} -N ${NWORKERS} --label --output=$SPARK_LOG_DIR/spark-%j-workers.out start-slave.sh -m ${SLURM_SPARK_MEM}M -c ${SLURM_CPUS_PER_TASK} ${MASTER_URL} &
+slaves_pid=$!
+
+acc=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/accidents_montreal.py
+road=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/road_network.py
+weather=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/weather.py
+preprocess=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/preprocess.py
+utils=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/utils.py
+
+srun -n 1 -N 1 spark-submit /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main.py --master ${MASTER_URL} --py-files ${acc} ${road} ${weather} ${preprocess} ${utils} --executor-memory ${SLURM_SPARK_MEM}M
+
+kill $slaves_pid
+: No such file or directory
+stopping org.apache.spark.deploy.master.Master

@@ -1,0 +1,4 @@
+starting org.apache.spark.deploy.master.Master, logging to /home/tguedon/.spark/2.3.0/log/spark-19255922-org.apache.spark.deploy.master.Master-1-cdr612.out
+this thing:  /home/tguedon/.spark/2.3.0/log/spark-19255922-org.apache.spark.deploy.master.Master-1-cdr612.out
+/var/spool/slurmd/job19255922/slurm_script: line 34: syntax error near unexpected token `?=spark://'
+/var/spool/slurmd/job19255922/slurm_script: line 34: `MASTER_URL=$(grep -Po '(?=spark://).*' $SPARK_LOG_DIR/spark-${SPARK_IDENT_STRING}-org.apache.spark.deploy.master*.out)'

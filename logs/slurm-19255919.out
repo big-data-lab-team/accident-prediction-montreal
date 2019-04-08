@@ -1,0 +1,2 @@
+starting org.apache.spark.deploy.master.Master, logging to /home/tguedon/.spark/2.3.0/log/spark-19255919-org.apache.spark.deploy.master.Master-1-cdr612.out
+slurmstepd: error: *** JOB 19255919 ON cdr612 CANCELLED AT 2019-04-06T15:28:43 ***

@@ -281,6 +281,8 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
             rmtree(cache_path)
             raise_parquet_not_del_error(cache_path)
 
+    replace_cache = False # to be deleted, just for debug 
+
     road_df = road_df or get_road_df(spark, replace_cache)
 
     if limit is None:

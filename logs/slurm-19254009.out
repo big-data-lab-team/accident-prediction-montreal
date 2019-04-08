@@ -1,0 +1,26 @@
+starting org.apache.spark.deploy.master.Master, logging to /home/tguedon/.spark/2.3.0/log/spark-19254009-org.apache.spark.deploy.master.Master-1-cdr574.out
+master url :  spark://cdr574.int.cedar.computecanada.ca:7077 spark://cdr574.int.cedar.computecanada.ca:7077
+/var/spool/slurmd/job19254009/slurm_script: line 52: 
+NWORKERS=$((SLURM_NTASKS - 1))
+SPARK_NO_DAEMONIZE=1 srun -n ${NWORKERS} -N ${NWORKERS} --label --output=$SPARK_LOG_DIR/spark-%j-workers.out start-slave.sh -m ${SLURM_SPARK_MEM}M -c ${SLURM_CPUS_PER_TASK} ${MASTER_URL} &
+slaves_pid=$!
+
+#virtualenv --no-download $SLURM_TMPDIR/env
+#source $SLURM_TMPDIR/env/bin/activate
+#pip install --upgrade pip
+#pip install --no-index -r requirements.txt
+
+export PYSPARK_PYTHON="/home/tguedon/acc_env/bin/python"
+export PYTHONPATH=${PYTHONPATH}:${PWD}
+
+acc=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/accidents_montreal.py
+road=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/road_network.py
+weather=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/weather.py
+preprocess=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/preprocess.py
+utils=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/utils.py
+
+srun -n 1 -N 1 spark-submit /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main_sample_match.py --master ${MASTER_URL} --py-files ${acc} ${road} ${weather} ${preprocess} ${utils} --executor-memory ${SLURM_SPARK_MEM}M
+
+kill $slaves_pid
+: No such file or directory
+stopping org.apache.spark.deploy.master.Master
