@@ -6,10 +6,10 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 #SBATCH --account=def-glatard
-#SBATCH --time=00:40:00
-#SBATCH --nodes=4
-#SBATCH --ntasks=4
-#SBATCH --mem=10G
+#SBATCH --time=00:10:00
+#SBATCH --nodes=11
+#SBATCH --ntasks=11
+#SBATCH --mem=15G
 #SBATCH --cpus-per-task=8
 #SBATCH --ntasks-per-node=1
 
@@ -19,6 +19,7 @@ module load python/3.7
 source ~/acc_env/bin/activate
 
 export PYSPARK_PYTHON="/home/tguedon/acc_env/bin/python"
+export PYTHONPATH=${PYTHONPATH}:${PWD}
 export MKL_NUM_THREADS=1
 export SPARK_IDENT_STRING=$SLURM_JOBID
 export SPARK_WORKER_DIR=$SLURM_TMPDIR

@@ -17,13 +17,16 @@ from utils import raise_parquet_not_del_error
 from shutil import rmtree
 
 
+workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/"
+
+
 def get_road_df(spark, replace_cache=False):
     fetch_road_network()
     return extract_road_segments_df(spark, replace_cache)
 
 
 def get_road_features_df(spark, road_df=None, replace_cache=False):
-    cache = "data/road-features.parquet"
+    cache = workdir + "data/road-features.parquet"
     if os.path.isdir(cache):
         print('Skip extracting road features: already done')
         try:
@@ -32,7 +35,7 @@ def get_road_features_df(spark, road_df=None, replace_cache=False):
                 rmtree(cache)
                 raise_parquet_not_del_error(cache)
             else:
-                return spark.read.parquet('data/road-features.parquet')
+                return spark.read.parquet(workdir + 'data/road-features.parquet')
         except Exception:
             print('Failed reading from disk cache')
             rmtree(cache)
@@ -81,7 +84,7 @@ def get_road_features_df(spark, road_df=None, replace_cache=False):
 def fetch_road_network():
     if not os.path.isdir('data'):
         os.mkdir('data')
-    if os.path.isfile('data/road-network.lock'):
+    if os.path.isfile(workdir + 'data/road-network.lock'):
         print('Skip fetching road network: already downloaded')
         return
     print('Fetching road network...')
@@ -95,11 +98,11 @@ def fetch_road_network():
         raise
     files = map(lambda tr: tr.a.text, bs.body.table.find_all('tr')[3:-1])
     files = filter(lambda f: re.match('.*_[4-7]_(5[5-9]|60).kmz', f), files)
-    if not os.path.isdir('data/road-network'):
-        os.mkdir('data/road-network')
+    if not os.path.isdir(workdir + 'data/road-network'):
+        os.mkdir(workdir + 'data/road-network')
     for file in files:
-        urlretrieve(f'{url}{quote(file)}', f'data/road-network/{file}')
-    open('data/road-network.lock', 'wb').close()
+        urlretrieve(f'{url}{quote(file)}', workdir + 'data/road-network/{0}'.format(file))
+    open(workdir + 'data/road-network.lock', 'wb').close()
     print('Fetching road network done')
 
 
@@ -154,16 +157,16 @@ def kml_extract_RDD(xml_file):
 
 def get_road_segments_RDD(spark):
     def read_doc_from_zip_file(file):
-        return (BytesIO(ZipFile(f'data/road-network/{file}', 'r')
+        return (BytesIO(ZipFile(workdir + 'data/road-network/{0}'.format(file), 'r')
                 .read('doc.kml')))
 
     return (spark.sparkContext
-            .parallelize(os.listdir('data/road-network/'))
+            .parallelize(os.listdir(workdir + 'data/road-network/'))
             .map(read_doc_from_zip_file))
 
 
 def extract_road_segments_df(spark, replace_cache=False):
-    cache = 'data/road-network.parquet'
+    cache = workdir + 'data/road-network.parquet'
     if os.path.isdir(cache):
         print('Skip extraction of road network dataframe: already done,'
               ' reading from file')
