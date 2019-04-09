@@ -2,7 +2,8 @@ from math import pi
 from os.path import isdir
 from shutil import rmtree
 import datetime
-from pyspark.sql import Window
+from functools import reduce
+from pyspark.sql import Window, DataFrame
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
                                   monotonically_increasing_id, year, udf, \
                                   when, isnan, cos, sin, lit
@@ -168,40 +169,33 @@ def match_accidents_with_roads(road_df, accident_df):
             .union(accidents_roads_first_match_with_additional_coords))
 
 
-def generate_dates_df(start, end, spark):
-    ''' Generate all dates and all hours between datetime start and
-    datetime end.
+def generate_dates_in_year_df(year, spark):
+    ''' Generate all dates and all hours between in the given year
     '''
-    date = datetime.datetime.strptime(start, "%d/%m/%Y")
-    end = datetime.datetime.strptime(end, "%d/%m/%Y")
+    date = datetime.datetime.strptime(f"01/01/{year}", "%d/%m/%Y")
+    end = datetime.datetime.strptime(f"01/01/{year+1}", "%d/%m/%Y")
     dates = list()
     while(date != end):
-        date += datetime.timedelta(days=1)
         for i in range(24):
             dates.append((date.strftime("%Y-%m-%d"), i))
+        date += datetime.timedelta(days=1)
 
-    # .persist(pyspark.StorageLevel.MEMORY_AND_DISK_SR)
     return spark.createDataFrame(dates, ['date', 'hour'])
 
 
-def extract_years(dates_df, year_limit, year_ratio):
-    test_year_values = udf(lambda x: True if x in year_limit else False,
-                           BooleanType())
-    if year_limit is not None and isinstance(year_limit, tuple):
-        dates_df = (dates_df.withColumn('year', year(col('date')))
-                    .filter(test_year_values(col('year')))
-                    .drop('year'))
-    elif year_limit is not None and isinstance(year_limit, int):
-        dates_df = (dates_df.withColumn('year', year(col('date')))
-                    .filter(col('year') == year_limit)
-                    .drop('year'))
+def generate_dates_df(spark, years, year_ratio):
+    if years is None:
+        years = (2012, 2013, 2014, 2105, 2016, 2017)
+
+    if years is not None and isinstance(years, int):
+        df = generate_dates_in_year_df(years, spark)
+    elif years is not None and isinstance(years, tuple):
+        dfs = (generate_dates_in_year_df(y, spark) for y in years)
+        df = reduce(DataFrame.union, dfs)
     else:
-        if year_limit is not None:
-            print("Type of year_limit not authorized. Generating everything..")
-    if year_ratio is not None:
-        return dates_df.sample(year_ratio)
-    else:
-        return dates_df
+        raise ValueError("Type of year_limit not authorized.")
+
+    return df.sample(year_ratio)
 
 
 def get_negative_samples(spark, replace_cache=False, road_limit=None,
@@ -216,7 +210,7 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
     cache_path = workdir + '/data/negative-samples.parquet'
     if isdir(cache_path):
         try:
-            if replace_cache:
+            if replace_cache or True:  # Do not use cache for debug
                 print('Removing cache...')
                 rmtree(cache_path)
                 raise_parquet_not_del_error(cache_path)
@@ -235,8 +229,7 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
                       .withColumnRenamed('center_lat', 'loc_lat')
                       .withColumnRenamed('center_long', 'loc_long'))
 
-    dates_df = generate_dates_df("01/01/2012", "31/12/2017", spark)
-    dates_df = extract_years(dates_df, year_limit, year_ratio)
+    dates_df = generate_dates_df(spark, year_limit, year_ratio)
 
     if road_limit is not None:
         road_df = road_df.limit(road_limit)
