@@ -3,18 +3,15 @@ from urllib.parse import quote
 from urllib.error import URLError, HTTPError
 import os
 import re
-import pyspark
-from bs4 import BeautifulSoup
 from zipfile import ZipFile
+from shutil import rmtree
 from io import BytesIO
 from bs4 import BeautifulSoup
-import pandas as pd
 from pyspark.sql.functions import col, abs, hash, atan2, \
                                   sqrt, cos, sin, radians, \
                                   udf
 from pyspark.sql.types import StringType
 from utils import raise_parquet_not_del_error
-from shutil import rmtree
 from workdir import workdir
 
 

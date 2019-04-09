@@ -1,22 +1,19 @@
-from accidents_montreal import fetch_accidents_montreal,\
-                               extract_accidents_montreal_df,\
-                               get_accident_df
+from math import pi
+from os.path import isdir
+from shutil import rmtree
+import datetime
+from pyspark.sql import Window
+from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
+                                  monotonically_increasing_id, year, udf, \
+                                  when, isnan, cos, sin, lit
+from pyspark.sql.types import BooleanType
+from utils import raise_parquet_not_del_error
+from accidents_montreal import get_accident_df
 from road_network import distance_intermediate_formula,\
                          distance_measure,\
                          get_road_features_df,\
                          get_road_df
 from weather import get_weather_df
-from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
-                                  rand, monotonically_increasing_id, year, \
-                                  udf, when, isnan, cos, sin, lit
-from pyspark.sql.types import *
-from os.path import isdir
-from shutil import rmtree
-import datetime
-from utils import raise_parquet_not_del_error, init_spark
-import pyspark
-from math import pi
 from workdir import workdir
 
 

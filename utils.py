@@ -16,7 +16,6 @@ def raise_parquet_not_del_error(cache):
 
 
 def init_spark():
-
     conf = SparkConf() \
             .set('spark.serializer',
                  'org.apache.spark.serializer.KryoSerializer') \

@@ -1,21 +1,14 @@
-from bs4 import BeautifulSoup
+import re
 import datetime
-import pandas as pd
 from io import StringIO
-import math
-import numpy as np
-from os import mkdir
-from os.path import isdir, isfile
-from pyspark.sql import Row, SparkSession
+from os.path import isdir
+from bs4 import BeautifulSoup
 from pyspark.sql.functions import udf, col, year, month, dayofmonth, explode
 from pyspark.sql.types import StructField, FloatType, StructType, \
                               IntegerType, ArrayType, DateType
-import re
 from requests import get
-import shutil
-import time
+import pandas as pd
 from utils import get_with_retry as get
-from workdir import workdir
 
 
 COLUMNS_USED = ['Dew Point Temp (°C)',
