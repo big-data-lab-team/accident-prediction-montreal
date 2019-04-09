@@ -1,2 +1,3 @@
 workdir = \
-    "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/"
+    "/home/hantoine/accident/"
+#    "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/"

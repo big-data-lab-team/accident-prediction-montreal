@@ -5,9 +5,11 @@ import datetime
 from functools import reduce
 from pyspark.sql import Window, DataFrame
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
-                                  monotonically_increasing_id, year, udf, \
-                                  when, isnan, cos, sin, lit
+                                  monotonically_increasing_id, when, isnan, \
+                                  year, cos, sin, month, dayofmonth, lit, \
+                                  dayofweek
 from pyspark.sql.types import BooleanType
+from pyspark.ml.feature import OneHotEncoder
 from utils import raise_parquet_not_del_error
 from accidents_montreal import get_accident_df
 from road_network import distance_intermediate_formula,\
@@ -240,7 +242,7 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
         negative_samples = negative_samples.sample(sample_ratio)
 
     negative_samples = \
-        negative_samples.withColumn('accident_id',
+        negative_samples.withColumn('sample_id',
                                     monotonically_increasing_id())
     accident_df = preprocess_accidents(accident_df or get_accident_df(spark))
     weather_df = weather_df or get_weather_df(spark, accident_df)
@@ -248,10 +250,10 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
         get_weather_information(negative_samples, weather_df)
     negative_samples = (negative_samples
                         .join(road_features_df, 'street_id')
-                        .join(negative_sample_weather, 'accident_id'))
+                        .join(negative_sample_weather, 'sample_id'))
+    negative_samples = add_date_features(negative_samples)
 
     negative_samples.write.parquet(cache_path)
-
     return negative_samples
 
 
@@ -284,11 +286,16 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     road_features_df = get_road_features_df(spark, road_df=road_df,
                                             replace_cache=replace_cache)
     match_accident_road = match_accidents_with_roads(road_df, accident_df)
+    accident_df = accident_df.withColumnRenamed('accident_id', 'sample_id')
     accident_weather = get_weather_information(accident_df, weather_df)
     positive_samples = (accident_df
-                        .join(accident_weather, 'accident_id')
+                        .join(accident_weather, 'sample_id')
+                        .withColumnRenamed('sample_id', 'accident_id')
                         .join(match_accident_road, 'accident_id')
-                        .join(road_features_df, 'street_id'))
+                        .join(road_features_df, 'street_id')
+                        .withColumnRenamed('accident_id', 'sample_id'))
+
+    positive_samples = add_date_features(positive_samples)
 
     positive_samples.write.parquet(cache_path)
     return positive_samples
@@ -327,16 +334,27 @@ def get_weather_information(samples, weather_df):
             .withColumn('dist_to_station',
                         distance_measure()*(6371 * 2 * 1000))
             .withColumn('inv_dist_to_station', 1/col('dist_to_station')**p)
-            .select('accident_id',
+            .select('sample_id',
                     *(weighted_weather_cols + coeffs_weather_cols))
-            .groupBy('accident_id')
+            .groupBy('sample_id')
             .sum(*(weighted_weather_cols_name + coeffs_weather_cols_name))
-            .select('accident_id', *final_weather_cols))
+            .select('sample_id', *final_weather_cols))
 
 
-def transform_to_cyclic_feature(df, colname, period):
+def add_cyclic_feature(df, column, col_name, period):
     period_scale = (2 * pi) / period
     return (df
-            .withColumn(colname+'_cos', cos(colname * lit(period_scale)))
-            .withColumn(colname+'_sin', sin(colname * lit(period_scale)))
-            .drop(colname))
+            .withColumn(col_name+'_cos', cos(column * lit(period_scale)))
+            .withColumn(col_name+'_sin', sin(column * lit(period_scale)))
+            .drop(col_name))
+
+
+def add_date_features(samples):
+    samples = add_cyclic_feature(samples, month('date'), 'month', 12)
+    samples = add_cyclic_feature(samples, dayofmonth('date'), 'day', 31)
+
+    samples = samples.withColumn('dayofweek', dayofweek('date'))
+    encoder = OneHotEncoder(inputCol='dayofweek', outputCol="dayofweek_onehot")
+    samples = encoder.transform(samples).drop('dayofweek')
+
+    return samples
