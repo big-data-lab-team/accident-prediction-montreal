@@ -15,9 +15,7 @@ from pyspark.sql.functions import col, abs, hash, atan2, \
 from pyspark.sql.types import StringType
 from utils import raise_parquet_not_del_error
 from shutil import rmtree
-
-
-workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/"
+from workdir import workdir
 
 
 def get_road_df(spark, replace_cache=False):
@@ -35,7 +33,8 @@ def get_road_features_df(spark, road_df=None, replace_cache=False):
                 rmtree(cache)
                 raise_parquet_not_del_error(cache)
             else:
-                return spark.read.parquet(workdir + 'data/road-features.parquet')
+                return spark.read.parquet(
+                    workdir+'data/road-features.parquet')
         except Exception:
             print('Failed reading from disk cache')
             rmtree(cache)
@@ -101,7 +100,8 @@ def fetch_road_network():
     if not os.path.isdir(workdir + 'data/road-network'):
         os.mkdir(workdir + 'data/road-network')
     for file in files:
-        urlretrieve(f'{url}{quote(file)}', workdir + 'data/road-network/{0}'.format(file))
+        urlretrieve(f'{url}{quote(file)}',
+                    workdir + 'data/road-network/{0}'.format(file))
     open(workdir + 'data/road-network.lock', 'wb').close()
     print('Fetching road network done')
 
@@ -157,7 +157,8 @@ def kml_extract_RDD(xml_file):
 
 def get_road_segments_RDD(spark):
     def read_doc_from_zip_file(file):
-        return (BytesIO(ZipFile(workdir + 'data/road-network/{0}'.format(file), 'r')
+        file_path = workdir + 'data/road-network/{0}'.format(file)
+        return (BytesIO(ZipFile(file_path, 'r')
                 .read('doc.kml')))
 
     return (spark.sparkContext

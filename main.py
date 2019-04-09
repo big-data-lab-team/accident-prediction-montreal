@@ -21,6 +21,4 @@ print("NUMBER GENERATED : ", negative_samples.count())
 """
 
 print('testing positives generation...')
-positive_samples = get_positive_samples(spark, replace_cache=True, limit=400)
-
-
+positive_samples = get_positive_samples(spark, limit=400)

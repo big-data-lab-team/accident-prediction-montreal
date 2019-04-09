@@ -9,13 +9,15 @@ from weather import get_weather_df
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
                                   rand, monotonically_increasing_id, year, \
-                                  udf, when, isnan
+                                  udf, when, isnan, cos, sin, lit
 from pyspark.sql.types import *
 from os.path import isdir
 from shutil import rmtree
 import datetime
 from utils import raise_parquet_not_del_error, init_spark
 import pyspark
+from math import pi
+from workdir import workdir
 
 
 def preprocess_accidents(accidents_df):
@@ -205,9 +207,6 @@ def extract_years(dates_df, year_limit, year_ratio):
         return dates_df
 
 
-workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal"
-
-
 def get_negative_samples(spark, replace_cache=False, road_limit=None,
                          year_limit=None, year_ratio=None, weather_df=None,
                          sample_ratio=None, accident_df=None):
@@ -271,7 +270,7 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     cache_path = workdir + '/data/positive-samples.parquet'
     if isdir(cache_path):
         try:
-            if replace_cache:
+            if replace_cache or True:  # Do not use cache for debug
                 rmtree(cache_path)
                 raise_parquet_not_del_error(cache_path)
             else:
@@ -280,8 +279,6 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
             print('Failed reading from disk cache')
             rmtree(cache_path)
             raise_parquet_not_del_error(cache_path)
-
-    replace_cache = False # to be deleted, just for debug 
 
     road_df = road_df or get_road_df(spark, replace_cache)
 
@@ -345,3 +342,11 @@ def get_weather_information(samples, weather_df):
             .groupBy('accident_id')
             .sum(*(weighted_weather_cols_name + coeffs_weather_cols_name))
             .select('accident_id', *final_weather_cols))
+
+
+def transform_to_cyclic_feature(df, colname, period):
+    period_scale = (2 * pi) / period
+    return (df
+            .withColumn(colname+'_cos', cos(colname * lit(period_scale)))
+            .withColumn(colname+'_sin', sin(colname * lit(period_scale)))
+            .drop(colname))

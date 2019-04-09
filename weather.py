@@ -15,6 +15,8 @@ from requests import get
 import shutil
 import time
 from utils import get_with_retry as get
+from workdir import workdir
+
 
 COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Rel Hum (%)',
@@ -36,9 +38,6 @@ def get_weather_df(spark, accident_df):
     stations_coord_df = get_weather_station_coords_df(spark, stations_id_df)
     stations_weather_df = get_weather_station_weather_df(spark, stations_id_df)
     return stations_weather_df.join(stations_coord_df, 'station_id')
-
-
-workdir = "/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal"
 
 
 def get_weather_station_id(lat, long, year, month, day):
