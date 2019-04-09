@@ -10,6 +10,8 @@ from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
                                   dayofweek
 from pyspark.sql.types import BooleanType
 from pyspark.ml.feature import OneHotEncoder
+from pyspark.ml.feature import StringIndexer
+from pyspark.ml.feature import VectorAssembler
 from utils import raise_parquet_not_del_error
 from accidents_montreal import get_accident_df
 from road_network import distance_intermediate_formula,\
@@ -364,3 +366,49 @@ def add_date_features(samples):
     samples = encoder.transform(samples).drop('dayofweek')
 
     return samples
+
+
+def get_dataset_df(spark, pos_samples, neg_samples):
+    pos_samples = pos_samples.withColumn('label', lit(1.0))
+    neg_samples = neg_samples.withColumn('label', lit(0.0))
+
+    df = pos_samples.unionByName(neg_samples)
+    street_level_indexer = StringIndexer(inputCol="street_level",
+                                         outputCol="street_level_indexed",
+                                         stringOrderType="alphabetAsc")
+    street_type_indexer = StringIndexer(inputCol="street_type",
+                                        outputCol="street_type_indexed",
+                                        handleInvalid='keep')
+    df = street_level_indexer.fit(df).transform(df).drop('street_level')
+    df = street_type_indexer.fit(df).transform(df).drop('street_type')
+
+    assembler = VectorAssembler(outputCol="features",
+                                inputCols=[
+                                    'hour',
+                                    'loc_long',
+                                    'loc_lat',
+                                    'street_level_indexed',
+                                    'street_length',
+                                    'street_type_indexed',
+                                    'wind_dir',
+                                    'rel_hum',
+                                    'wind_spd',
+                                    'dew_point_temp',
+                                    'visibility',
+                                    'stn_press',
+                                    'wind_chill',
+                                    'hmdx',
+                                    'temp',
+                                    'month_cos',
+                                    'month_sin',
+                                    'day_cos',
+                                    'day_sin',
+                                    'dayofweek_onehot'],
+                                handleInvalid='keep'
+                                )
+    df = (assembler.transform(df)
+          .select('sample_id',
+                  'street_id',
+                  'date', 'hour', 'features', 'label'))
+
+    return df
