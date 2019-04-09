@@ -258,7 +258,14 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
 
 
 def get_positive_samples(spark, road_df=None, weather_df=None,
-                         replace_cache=False, limit=None):
+                         year_limit=None, replace_cache=False, limit=None):
+    if isinstance(year_limit, int):
+        year_limit = [year_limit]
+    elif isinstance(year_limit, tuple):
+        year_limit = list(year_limit)
+    elif not isinstance(year_limit, list):
+        raise ValueError('Type of year_limit not authorized.')
+
     cache_path = workdir + '/data/positive-samples.parquet'
     if isdir(cache_path):
         try:
@@ -273,14 +280,13 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
             raise_parquet_not_del_error(cache_path)
 
     road_df = road_df or get_road_df(spark, replace_cache)
+    accident_df = get_accident_df(spark, replace_cache)
+    accident_df = preprocess_accidents(accident_df)
 
-    if limit is None:
-        accident_df = preprocess_accidents(get_accident_df(spark,
-                                                           replace_cache))
-    else:
-        accident_df = preprocess_accidents(get_accident_df(spark,
-                                                           replace_cache)) \
-                                                           .limit(limit)
+    if year_limit is not None:
+        accident_df = accident_df.filter(year('date').isin(year_limit))
+    if limit is not None:
+        accident_df = accident_df.limit(limit)
 
     weather_df = weather_df or get_weather_df(spark, accident_df)
     road_features_df = get_road_features_df(spark, road_df=road_df,
