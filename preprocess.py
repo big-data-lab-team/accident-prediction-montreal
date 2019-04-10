@@ -259,6 +259,7 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
                         .join(road_features_df, 'street_id')
                         .join(negative_sample_weather, 'sample_id'))
     negative_samples = add_date_features(negative_samples)
+    negative_samples = negative_samples.persist()
 
     negative_samples.write.parquet(cache_path)
     return negative_samples
@@ -270,13 +271,13 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
         year_limit = [year_limit]
     elif isinstance(year_limit, tuple):
         year_limit = list(year_limit)
-    elif not isinstance(year_limit, list):
+    elif not ((year_limit is None) or isinstance(year_limit, list)):
         raise ValueError('Type of year_limit not authorized.')
 
     cache_path = workdir + '/data/positive-samples.parquet'
     if isdir(cache_path):
         try:
-            if replace_cache or True:  # Do not use cache for debug
+            if replace_cache:
                 rmtree(cache_path)
                 raise_parquet_not_del_error(cache_path)
             else:
@@ -309,6 +310,7 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
                         .withColumnRenamed('accident_id', 'sample_id'))
 
     positive_samples = add_date_features(positive_samples)
+    positive_samples = positive_samples.persist()
 
     positive_samples.write.parquet(cache_path)
     return positive_samples
