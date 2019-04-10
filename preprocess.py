@@ -204,7 +204,10 @@ def generate_dates_df(spark, years, year_ratio):
     else:
         raise ValueError("Type of year_limit not authorized.")
 
-    return df.sample(year_ratio)
+    if year_ratio is not None:
+        df = df.sample(year_ratio)
+
+    return df
 
 
 def get_negative_samples(spark, replace_cache=False, road_limit=None,
