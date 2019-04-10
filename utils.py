@@ -16,17 +16,14 @@ def raise_parquet_not_del_error(cache):
 
 
 def init_spark():
-    conf = SparkConf() \
-            .set('spark.serializer',
-                 'org.apache.spark.serializer.KryoSerializer') \
-            .set('spark.rdd.compress', 'True') \
-            .set('spark.eventLog.enabled', 'True')
-
     return (SparkSession
             .builder
+            .appName("Accident prediction")
+            .config("spark.rdd.compress", "True")
+            .config("spark.serializer",
+                    "org.apache.spark.serializer.KryoSerializer")
+            .config("spark.executor.memory", "1536m")
             .getOrCreate())
-
-# .set('spark.executor.memory', '5g') \
 
 
 def get_with_retry(
