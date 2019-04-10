@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+from functools import reduce
 from utils import init_spark
 from workdir import workdir
 from preprocess import preprocess_accidents, \
@@ -11,41 +12,59 @@ from road_network import get_road_df, \
                          get_road_features_df
 from accidents_montreal import get_accident_df
 import datetime
-import pyspark.sql.functions as f
+from os.path import isdir
+from pyspark.sql.functions import col
+from pyspark.sql import DataFrame
 
 
-def myfun(x):
-    os.system("pip install pandas beautifulsoup4 lxml matplotlib requests")
-    return x
+def generate_match_accident_road_of_one_month(year, month):
+    filepath = workdir + f'data/matching_accident_road_{year}-{month}.parquet'
+    if isdir(filepath):  # Skip if already done
+        return
+    print(f'Generating {year}-{month}')
+    spark = init_spark()
+    road_df = get_road_df(spark, replace_cache=False)
+    accident_df = preprocess_accidents(get_accident_df(spark, False))
 
+    start_day_str = f'{year}-{month:02}-01'
+    if month == 12:
+        end_year = year + 1
+        month = 0
+    else:
+        end_year = year
+    end_day_str = f'{end_year}-{(month + 1):02}-01'
+
+    start_day = datetime.datetime.fromisoformat(start_day_str)
+    end_day = datetime.datetime.fromisoformat(end_day_str)
+    accident_df = (accident_df
+                   .filter((col('date') >= start_day)
+                           & (col('date') < end_day)))
+
+    match_accident_road = \
+        match_accidents_with_roads(spark, road_df, accident_df,
+                                   use_cache=False)
+
+    match_accident_road.write.parquet(filepath)
+    spark.stop()  # Force garbage collection and empty temp dir
+
+
+for year in range(2012, 2018):
+    for month in range(1, 13):
+        generate_match_accident_road_of_one_month(year, month)
 
 spark = init_spark()
-sc = spark.sparkContext
-log4jLogger = sc._jvm.org.apache.log4j
-log = log4jLogger.LogManager.getLogger(__name__)
 
-rdd = sc.parallelize([1, 2, 3, 4])  # assuming 4 worker nodes
-rdd.map(lambda x: myfun(x)).collect()
 
-log.warn("road df...")
-road_df = get_road_df(spark, replace_cache=False)
+def match_accident_road_samples_reader():
+    for year in range(2012, 2018):
+        for month in range(1, 13):
+            filepath = workdir \
+                + f'data/matching_accident_road_{year}-{month}' \
+                + '.parquet'
+            yield spark.read.parquet(filepath)
 
-log.warn("accident_df...")
-accident_df = preprocess_accidents(get_accident_df(spark, False))
 
-# At this point, we have not choice but to use a sample since we
-# don't have access to a cluster yet. Let's take one year, the last one
-# the accident dataset contains all accident in years [2012-2017]
-# Since one Year is too much, let's take half
-last_day_of_2016 = datetime.datetime.fromisoformat('2016-12-31')
-
-log.warn("filtering...")
-accident_df = accident_df.filter(f.col('date') > last_day_of_2016)
-
-log.warn("matching...")
-match_accident_road = match_accidents_with_roads(road_df, accident_df)
-
-log.warn("writing...")
-(match_accident_road
-    .write.parquet(workdir
-                   + '/data/matching_accident_road_last_6_months.parquet'))
+full_matching_accident_road = reduce(DataFrame.union,
+                                     match_accident_road_samples_reader())
+filepath = workdir + 'data/matching_accident_road.parquet'
+full_matching_accident_road.write.parquet(filepath)

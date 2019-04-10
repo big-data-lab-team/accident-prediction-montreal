@@ -37,7 +37,12 @@ def preprocess_accidents(accidents_df):
             .dropna())
 
 
-def match_accidents_with_roads(road_df, accident_df):
+def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
+    cache_path = workdir + 'data/matching_accident_road.parquet'
+    if isdir(cache_path) and use_cache:
+        print('Reading accident-road matches from cache...')
+        return spark.read.parquet(cache_path)
+
     nb_top_road_center_preselected = 5
     max_distance_accepted = 10  # in meters
 
@@ -293,13 +298,13 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     weather_df = weather_df or get_weather_df(spark, accident_df)
     road_features_df = get_road_features_df(spark, road_df=road_df,
                                             replace_cache=replace_cache)
-    match_accident_road = match_accidents_with_roads(road_df, accident_df)
+    match_acc_road = match_accidents_with_roads(spark, road_df, accident_df)
     accident_df = accident_df.withColumnRenamed('accident_id', 'sample_id')
     accident_weather = get_weather_information(accident_df, weather_df)
     positive_samples = (accident_df
                         .join(accident_weather, 'sample_id')
                         .withColumnRenamed('sample_id', 'accident_id')
-                        .join(match_accident_road, 'accident_id')
+                        .join(match_acc_road, 'accident_id')
                         .join(road_features_df, 'street_id')
                         .withColumnRenamed('accident_id', 'sample_id'))
 

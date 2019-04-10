@@ -22,7 +22,10 @@ def init_spark():
             .config("spark.rdd.compress", "True")
             .config("spark.serializer",
                     "org.apache.spark.serializer.KryoSerializer")
-            .config("spark.executor.memory", "1536m")
+            # In local mode only one executor which is the driver
+            # .config("spark.executor.memory", "1536m")
+            .config("spark.driver.memory", "10g")
+            # .config("spark.cleaner.periodicGC.interval", "5min")
             .getOrCreate())
 
 
