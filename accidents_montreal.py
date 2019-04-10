@@ -13,9 +13,9 @@ from utils import raise_parquet_not_del_error
 from shutil import rmtree
 
 
-def get_accident_df(spark, replace_cache=False):
+def get_accident_df(spark, use_cache=True):
     fetch_accidents_montreal()
-    return extract_accidents_montreal_df(spark, replace_cache)
+    return extract_accidents_montreal_df(spark, use_cache)
 
 
 def fetch_accidents_montreal():
@@ -42,25 +42,12 @@ def fetch_accidents_montreal():
         print('Unable to find montreal accidents dataset.')
 
 
-def extract_accidents_montreal_df(spark, replace_cache=False):
+def extract_accidents_montreal_df(spark, use_cache=True):
     cache = 'data/accidents-montreal.parquet'
-    if os.path.isdir(cache) or os.path.isfile(cache):
+    if (os.path.isdir(cache) or os.path.isfile(cache)) and use_cache:
         print('Skip extraction of accidents montreal dataframe:'
               ' already done, reading from file')
-        try:
-            if replace_cache:
-                print('Deleting cache...')
-                if os.path.isdir(cache):
-                    rmtree(cache)
-                else:
-                    os.remove(cache)
-                raise_parquet_not_del_error(cache)
-            else:
-                return spark.read.parquet(cache)
-        except Exception:
-            print('Failed reading from disk cache')
-            rmtree(cache)
-            raise_parquet_not_del_error(cache)
+        return spark.read.parquet(cache)
 
     # We read directly from ZIP to avoid disk IO
     file = (BytesIO(ZipFile('data/accidents-montreal.zip', 'r')
@@ -81,5 +68,6 @@ def extract_accidents_montreal_df(spark, replace_cache=False):
     sch = StructType(fields)
     df = (spark.createDataFrame(data=pddf, schema=sch).repartition(200)
           .withColumn('ACCIDENT_ID', monotonically_increasing_id()))
-    df.write.parquet(cache)
+    if use_cache:
+        df.write.parquet(cache)
     return df

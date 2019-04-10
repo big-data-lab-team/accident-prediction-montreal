@@ -210,7 +210,7 @@ def generate_dates_df(spark, years, year_ratio):
     return df
 
 
-def get_negative_samples(spark, replace_cache=False, road_limit=None,
+def get_negative_samples(spark, use_cache=True, road_limit=None,
                          year_limit=None, year_ratio=None, weather_df=None,
                          sample_ratio=None, accident_df=None):
     """
@@ -220,23 +220,12 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
     year_limit: int or tuple of int
     """
     cache_path = workdir + '/data/negative-samples.parquet'
-    if isdir(cache_path):
-        try:
-            if replace_cache or True:  # Do not use cache for debug
-                print('Removing cache...')
-                rmtree(cache_path)
-                raise_parquet_not_del_error(cache_path)
-            else:
-                print('Reading from cache...')
-                return spark.read.parquet(cache_path)
-        except Exception:
-            print('Failed reading from disk cache')
-            rmtree(cache_path)
-            raise_parquet_not_del_error(cache_path)
+    if isdir(cache_path) and use_cache:
+        return spark.read.parquet(cache_path)
 
-    road_df = get_road_df(spark, replace_cache)
-    road_features_df = get_road_features_df(spark, road_df=road_df,
-                                            replace_cache=False)
+    road_df = get_road_df(spark, not use_cache)
+    road_features_df = \
+        get_road_features_df(spark, road_df=road_df, use_cache=use_cache)
     road_df = (road_df.select(['center_long', 'center_lat', 'street_id'])
                       .withColumnRenamed('center_lat', 'loc_lat')
                       .withColumnRenamed('center_long', 'loc_long'))
@@ -264,12 +253,13 @@ def get_negative_samples(spark, replace_cache=False, road_limit=None,
     negative_samples = add_date_features(negative_samples)
     negative_samples = negative_samples.persist()
 
-    negative_samples.write.parquet(cache_path)
+    if use_cache:
+        negative_samples.write.parquet(cache_path)
     return negative_samples
 
 
 def get_positive_samples(spark, road_df=None, weather_df=None,
-                         year_limit=None, replace_cache=False, limit=None):
+                         year_limit=None, use_cache=True, limit=None):
     if isinstance(year_limit, int):
         year_limit = [year_limit]
     elif isinstance(year_limit, tuple):
@@ -277,21 +267,12 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     elif not ((year_limit is None) or isinstance(year_limit, list)):
         raise ValueError('Type of year_limit not authorized.')
 
-    cache_path = workdir + '/data/positive-samples.parquet'
-    if isdir(cache_path):
-        try:
-            if replace_cache:
-                rmtree(cache_path)
-                raise_parquet_not_del_error(cache_path)
-            else:
-                return spark.read.parquet(cache_path)
-        except Exception:
-            print('Failed reading from disk cache')
-            rmtree(cache_path)
-            raise_parquet_not_del_error(cache_path)
+    cache_path = workdir + 'data/positive-samples.parquet'
+    if isdir(cache_path) and use_cache:
+        return spark.read.parquet(cache_path)
 
-    road_df = road_df or get_road_df(spark, replace_cache)
-    accident_df = get_accident_df(spark, replace_cache)
+    road_df = road_df or get_road_df(spark, not use_cache)
+    accident_df = get_accident_df(spark, not use_cache)
     accident_df = preprocess_accidents(accident_df)
 
     if year_limit is not None:
@@ -300,8 +281,8 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
         accident_df = accident_df.limit(limit)
 
     weather_df = weather_df or get_weather_df(spark, accident_df)
-    road_features_df = get_road_features_df(spark, road_df=road_df,
-                                            replace_cache=replace_cache)
+    road_features_df = \
+        get_road_features_df(spark, road_df=road_df, use_cache=use_cache)
     match_acc_road = match_accidents_with_roads(spark, road_df, accident_df)
     accident_df = accident_df.withColumnRenamed('accident_id', 'sample_id')
     accident_weather = get_weather_information(accident_df, weather_df)
@@ -315,7 +296,8 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     positive_samples = add_date_features(positive_samples)
     positive_samples = positive_samples.persist()
 
-    positive_samples.write.parquet(cache_path)
+    if use_cache:
+        positive_samples.write.parquet(cache_path)
     return positive_samples
 
 

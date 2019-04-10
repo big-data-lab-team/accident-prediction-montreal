@@ -7,7 +7,7 @@ from preprocess import get_positive_samples, get_negative_samples
 def test_get_positive_samples():
     spark = init_spark()
     positive_samples = get_positive_samples(spark, road_df=None,
-                                            replace_cache=True, limit=10)
+                                            use_cache=False, limit=10)
     positive_samples.show()
     assert positive_samples.count() > 0
     return
@@ -15,7 +15,7 @@ def test_get_positive_samples():
 
 def get_negative_samples_(spark, params):
     return get_negative_samples(spark,
-                                replace_cache=params['replace_cache'],
+                                use_cache=params['use_cache'],
                                 road_limit=params['road_limit'],
                                 year_limit=params['year_limit'],
                                 year_ratio=params['year_ratio'],
@@ -24,7 +24,7 @@ def get_negative_samples_(spark, params):
 
 def test_get_negative_samples():
     spark = init_spark()
-    params = {'replace_cache': True,
+    params = {'use_cache': False,
               'road_limit': 20,
               'year_limit': 2017,
               'year_ratio': 0.01,

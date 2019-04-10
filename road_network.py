@@ -15,30 +15,18 @@ from utils import raise_parquet_not_del_error
 from workdir import workdir
 
 
-def get_road_df(spark, replace_cache=False):
+def get_road_df(spark, use_cache=True):
     fetch_road_network()
-    return extract_road_segments_df(spark, replace_cache)
+    return extract_road_segments_df(spark, use_cache)
 
 
-def get_road_features_df(spark, road_df=None, replace_cache=False):
+def get_road_features_df(spark, road_df=None, use_cache=True):
     cache = workdir + "data/road-features.parquet"
-    if os.path.isdir(cache):
+    if os.path.isdir(cache) and use_cache:
         print('Skip extracting road features: already done')
-        try:
-            if replace_cache:
-                print('Deleting cache...')
-                rmtree(cache)
-                raise_parquet_not_del_error(cache)
-            else:
-                return spark.read.parquet(
-                    workdir+'data/road-features.parquet')
-        except Exception:
-            print('Failed reading from disk cache')
-            rmtree(cache)
-            raise_parquet_not_del_error(cache)
+        return spark.read.parquet(workdir+'data/road-features.parquet')
 
-    if road_df is None:
-        road_df = get_road_df(spark)
+    road_df = road_df or get_road_df(spark)
 
     print('Extracting road features...')
     assign_street_type_udf = udf(assign_street_type, StringType())
@@ -72,7 +60,8 @@ def get_road_features_df(spark, road_df=None, replace_cache=False):
                                  assign_street_type_udf(col('street_name')))
                      .drop('street_name'))
 
-    road_features.write.parquet(cache)
+    if use_cache:
+        road_features.write.parquet(cache)
     print('Extracting road features: done')
     return road_features
 
@@ -163,22 +152,12 @@ def get_road_segments_RDD(spark):
             .map(read_doc_from_zip_file))
 
 
-def extract_road_segments_df(spark, replace_cache=False):
+def extract_road_segments_df(spark, use_cache=True):
     cache = workdir + 'data/road-network.parquet'
-    if os.path.isdir(cache):
+    if os.path.isdir(cache) and use_cache:
         print('Skip extraction of road network dataframe: already done,'
               ' reading from file')
-        try:
-            if replace_cache:
-                print('Deleting cache...')
-                rmtree(cache)
-                raise_parquet_not_del_error(cache)
-            else:
-                return spark.read.parquet(cache)
-        except Exception:
-            print('Failed reading from disk cache')
-            rmtree(cache)
-            raise_parquet_not_del_error(cache)
+        return spark.read.parquet(cache)
 
     print('Extracting road network dataframe...')
     cols = ['street_name', 'street_type', 'center_long', 'center_lat',
@@ -191,7 +170,8 @@ def extract_road_segments_df(spark, replace_cache=False):
                                abs(hash(col('center_long'), col('center_lat')))
                                ))
 
-    road_seg_df.write.parquet(cache)
+    if use_cache:
+        road_seg_df.write.parquet(cache)
     print('Extracting road network dataframe done')
     return road_seg_df
 

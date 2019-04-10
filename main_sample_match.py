@@ -23,7 +23,7 @@ def generate_match_accident_road_of_one_month(year, month):
         return
     print(f'Generating {year}-{month}')
     spark = init_spark()
-    road_df = get_road_df(spark, replace_cache=False)
+    road_df = get_road_df(spark, use_cache=True)
     accident_df = preprocess_accidents(get_accident_df(spark, False))
 
     start_day_str = f'{year}-{month:02}-01'
