@@ -9,7 +9,7 @@ from io import BytesIO
 from bs4 import BeautifulSoup
 from pyspark.sql.functions import col, abs, hash, atan2, \
                                   sqrt, cos, sin, radians, \
-                                  udf
+                                  udf, monotonically_increasing_id
 from pyspark.sql.types import StringType
 from utils import raise_parquet_not_del_error
 from workdir import workdir
@@ -33,7 +33,8 @@ def get_road_features_df(spark, road_df=None, use_cache=True):
     earth_diameter = 6371 * 2 * 1000  # in meters
     road_features = (road_df
                      .select('street_id', 'street_type', 'street_name',
-                             'coord_lat', 'coord_long')
+                             'coord_lat', 'coord_long', 'center_lat',
+                             'center_long')
                      .join(road_df.select(
                                 'street_id',
                                 col('coord_lat').alias('coord2_lat'),
@@ -47,15 +48,20 @@ def get_road_features_df(spark, road_df=None, use_cache=True):
                                     'coord2_long'))
                      .withColumn('dist_measure', distance_measure())
                      .select('street_id', 'street_type', 'street_name',
-                             'dist_measure')
-                     .groupBy('street_id', 'street_type', 'street_name')
+                             'dist_measure', 'center_lat', 'center_long')
+                     .groupBy('street_id', 'street_type', 'street_name',
+                              'center_lat', 'center_long')
                      .max('dist_measure')
                      .withColumn('street_length',
                                  col('max(dist_measure)') * earth_diameter)
                      .select('street_id',
                              col('street_type').alias('street_level'),
                              'street_name',
-                             'street_length')
+                             'street_length',
+                             'center_lat',
+                             'center_long')
+                     .withColumnRenamed('center_lat', 'loc_lat')
+                     .withColumnRenamed('center_long', 'loc_long')
                      .withColumn('street_type',
                                  assign_street_type_udf(col('street_name')))
                      .drop('street_name'))
@@ -63,7 +69,7 @@ def get_road_features_df(spark, road_df=None, use_cache=True):
     if use_cache:
         road_features.write.parquet(cache)
     print('Extracting road features: done')
-    return road_features
+    return road_features.distinct()
 
 
 def fetch_road_network():
@@ -165,10 +171,14 @@ def extract_road_segments_df(spark, use_cache=True):
 
     road_seg_df = (get_road_segments_RDD(spark)
                    .flatMap(kml_extract_RDD)
-                   .toDF(cols)
-                   .withColumn('street_id',
-                               abs(hash(col('center_long'), col('center_lat')))
-                               ))
+                   .toDF(cols))
+    
+    # Adding unique IDs
+    ids = (road_seg_df
+           .select('center_long', 'center_lat')
+           .distinct()
+           .withColumn('street_id', monotonically_increasing_id()))
+    road_seg_df = road_seg_df.join(ids, ['center_long', 'center_lat'])
 
     if use_cache:
         road_seg_df.write.parquet(cache)

@@ -7,7 +7,7 @@ from pyspark.sql import Window, DataFrame
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
                                   monotonically_increasing_id, when, isnan, \
                                   year, cos, sin, month, dayofmonth, lit, \
-                                  dayofweek
+                                  dayofweek, isnull
 from pyspark.sql.types import BooleanType
 from pyspark.ml.feature import OneHotEncoder
 from pyspark.ml.feature import StringIndexer
@@ -194,7 +194,7 @@ def generate_dates_in_year_df(year, spark):
 
 def generate_dates_df(spark, years, year_ratio):
     if years is None:
-        years = (2012, 2013, 2014, 2105, 2016, 2017)
+        years = (2012, 2013, 2014, 2015, 2016, 2017)
 
     if years is not None and isinstance(years, int):
         df = generate_dates_in_year_df(years, spark)
@@ -207,7 +207,7 @@ def generate_dates_df(spark, years, year_ratio):
     if year_ratio is not None:
         df = df.sample(year_ratio)
 
-    return df
+    return df.distinct()
 
 
 def get_negative_samples(spark, use_cache=True, road_limit=None,
@@ -220,16 +220,13 @@ def get_negative_samples(spark, use_cache=True, road_limit=None,
     year_limit: int or tuple of int
     """
     cache_path = workdir + '/data/negative-samples.parquet'
-    if isdir(cache_path) and use_cache:
+    if isdir(cache_path) and use_cache and False:
         return spark.read.parquet(cache_path)
 
-    road_df = get_road_df(spark, not use_cache)
+    road_df = get_road_df(spark, use_cache)
     road_features_df = \
         get_road_features_df(spark, road_df=road_df, use_cache=use_cache)
-    road_df = (road_df.select(['center_long', 'center_lat', 'street_id'])
-                      .withColumnRenamed('center_lat', 'loc_lat')
-                      .withColumnRenamed('center_long', 'loc_long'))
-
+    road_df = road_features_df.select('street_id')
     dates_df = generate_dates_df(spark, year_limit, year_ratio)
 
     if road_limit is not None:
@@ -245,11 +242,11 @@ def get_negative_samples(spark, use_cache=True, road_limit=None,
                                     monotonically_increasing_id())
     accident_df = preprocess_accidents(accident_df or get_accident_df(spark))
     weather_df = weather_df or get_weather_df(spark, accident_df)
+    negative_samples = negative_samples.join(road_features_df, 'street_id')
     negative_sample_weather = \
         get_weather_information(negative_samples, weather_df)
-    negative_samples = (negative_samples
-                        .join(road_features_df, 'street_id')
-                        .join(negative_sample_weather, 'sample_id'))
+    negative_samples = \
+        negative_samples.join(negative_sample_weather, 'sample_id')
     negative_samples = add_date_features(negative_samples)
     negative_samples = negative_samples.persist()
 
@@ -282,7 +279,8 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
 
     weather_df = weather_df or get_weather_df(spark, accident_df)
     road_features_df = \
-        get_road_features_df(spark, road_df=road_df, use_cache=use_cache)
+        (get_road_features_df(spark, road_df=road_df, use_cache=use_cache)
+         .drop('loc_lat', 'loc_long'))
     match_acc_road = match_accidents_with_roads(spark, road_df, accident_df)
     accident_df = accident_df.withColumnRenamed('accident_id', 'sample_id')
     accident_weather = get_weather_information(accident_df, weather_df)
@@ -360,11 +358,46 @@ def add_date_features(samples):
     return samples
 
 
+features_col = ['hour',
+                # 'loc_long',
+                # 'loc_lat',
+                'street_level_indexed',
+                'street_length',
+                'street_type_indexed',
+                'wind_dir',
+                'rel_hum',
+                'wind_spd',
+                'dew_point_temp',
+                'visibility',
+                'stn_press',
+                'wind_chill',
+                'hmdx',
+                'temp',
+                'month_cos',
+                'month_sin',
+                'day_cos',
+                'day_sin',
+                'dayofweek_onehot']
+
+def remove_positive_samples_from_negative_samples(neg_samples, pos_samples):
+    pos_samples_to_remove = pos_samples.select('date', 'hour', 'street_id',
+                                               lit(1).alias('exists'))
+    neg_samples = (neg_samples
+                   .join(pos_samples_to_remove,
+                         ['date', 'hour', 'street_id'],
+                         "left_outer")
+                   .filter(isnull('exists'))
+                   .drop('exists'))
+    return neg_samples
+
 def get_dataset_df(spark, pos_samples, neg_samples):
+    neg_samples = remove_positive_samples_from_negative_samples(neg_samples,
+                                                                pos_samples)
     pos_samples = pos_samples.withColumn('label', lit(1.0))
     neg_samples = neg_samples.withColumn('label', lit(0.0))
 
-    df = pos_samples.unionByName(neg_samples)
+    pos_samples = pos_samples.select(*neg_samples.columns)
+    df = pos_samples.union(neg_samples)
     street_level_indexer = StringIndexer(inputCol="street_level",
                                          outputCol="street_level_indexed",
                                          stringOrderType="alphabetAsc")
@@ -375,27 +408,7 @@ def get_dataset_df(spark, pos_samples, neg_samples):
     df = street_type_indexer.fit(df).transform(df).drop('street_type')
 
     assembler = VectorAssembler(outputCol="features",
-                                inputCols=[
-                                    'hour',
-                                    'loc_long',
-                                    'loc_lat',
-                                    'street_level_indexed',
-                                    'street_length',
-                                    'street_type_indexed',
-                                    'wind_dir',
-                                    'rel_hum',
-                                    'wind_spd',
-                                    'dew_point_temp',
-                                    'visibility',
-                                    'stn_press',
-                                    'wind_chill',
-                                    'hmdx',
-                                    'temp',
-                                    'month_cos',
-                                    'month_sin',
-                                    'day_cos',
-                                    'day_sin',
-                                    'dayofweek_onehot'],
+                                inputCols=features_col,
                                 handleInvalid='keep'
                                 )
     df = (assembler.transform(df)

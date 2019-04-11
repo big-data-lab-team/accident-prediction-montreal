@@ -8,8 +8,7 @@ from preprocess import preprocess_accidents, \
                        get_positive_samples, \
                        get_negative_samples, \
                        match_accidents_with_roads
-from road_network import get_road_df, \
-                         get_road_features_df
+from road_network import get_road_df
 from accidents_montreal import get_accident_df
 import datetime
 from os.path import isdir
