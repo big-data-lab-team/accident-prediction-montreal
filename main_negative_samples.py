@@ -4,5 +4,5 @@ from utils import init_spark
 spark = init_spark()
 neg_samples = get_negative_samples(spark,
                                    save_to='data/negative_sample_new.parquet',
-                                   sample_ratio=1e-2)
+                                   sample_ratio=1e-3)
 print(neg_samples.count())
