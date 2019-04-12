@@ -210,7 +210,7 @@ def generate_dates_df(spark, years, year_ratio):
     return df.distinct()
 
 
-def get_negative_samples(spark, use_cache=True, road_limit=None,
+def get_negative_samples(spark, use_cache=True, save_to=None, road_limit=None,
                          year_limit=None, year_ratio=None, weather_df=None,
                          sample_ratio=None, accident_df=None):
     """
@@ -220,8 +220,12 @@ def get_negative_samples(spark, use_cache=True, road_limit=None,
     year_limit: int or tuple of int
     """
     cache_path = workdir + '/data/negative-samples.parquet'
-    if isdir(cache_path) and use_cache and False:
+    if isdir(cache_path) and use_cache and save_to is None:
         return spark.read.parquet(cache_path)
+    if save_to is not None:
+        cache_path = workdir + save_to
+        if isdir(cache_path):
+            raise ValueError(f"Directory {save_to} already exists")
 
     road_df = get_road_df(spark, use_cache)
     road_features_df = \
