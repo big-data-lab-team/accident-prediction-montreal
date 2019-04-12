@@ -172,7 +172,7 @@ def extract_road_segments_df(spark, use_cache=True):
     road_seg_df = (get_road_segments_RDD(spark)
                    .flatMap(kml_extract_RDD)
                    .toDF(cols))
-    
+
     # Adding unique IDs
     ids = (road_seg_df
            .select('center_long', 'center_lat')

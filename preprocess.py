@@ -383,6 +383,7 @@ features_col = ['hour',
                 'day_sin',
                 'dayofweek_onehot']
 
+
 def remove_positive_samples_from_negative_samples(neg_samples, pos_samples):
     pos_samples_to_remove = pos_samples.select('date', 'hour', 'street_id',
                                                lit(1).alias('exists'))
@@ -393,6 +394,7 @@ def remove_positive_samples_from_negative_samples(neg_samples, pos_samples):
                    .filter(isnull('exists'))
                    .drop('exists'))
     return neg_samples
+
 
 def get_dataset_df(spark, pos_samples, neg_samples):
     neg_samples = remove_positive_samples_from_negative_samples(neg_samples,
