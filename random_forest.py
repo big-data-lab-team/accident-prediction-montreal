@@ -35,22 +35,6 @@ def random_forest_tuning(train_samples):
     return model
 
 
-def evaluate_model(predictions):
-    PR_evaluator = \
-        BinaryClassificationEvaluator(labelCol="label",
-                                      rawPredictionCol="rawPrediction",
-                                      metricName="areaUnderPR")
-    area_under_ROC = PR_evaluator.evaluate(predictions)
-    f1_evaluator = \
-        MulticlassClassificationEvaluator(predictionCol='prediction',
-                                          labelCol='label',
-                                          metricName='f1')
-    f1_score = f1_evaluator.evaluate(predictions)
-    print(f"Area Under ROC = {area_under_ROC}\nF1 score = {f1_score}")
-
-    return (area_under_ROC, f1_score)
-
-
 def compute_precision_recall(predictions, threshold):
     def prob_positive(v):
         try:
