@@ -363,8 +363,8 @@ def add_date_features(samples):
 
 
 features_col = ['hour',
-                # 'loc_long',
-                # 'loc_lat',
+                'loc_long',
+                'loc_lat',
                 'street_level_indexed',
                 'street_length',
                 'street_type_indexed',
