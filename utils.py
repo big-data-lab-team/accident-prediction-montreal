@@ -19,6 +19,8 @@ def init_spark():
     sess = (SparkSession
             .builder
             .appName("Accident prediction")
+            #.master("local[6]")
+            #.config("spark.driver.memory", "4g")
             .config("spark.rdd.compress", "True")
             .config("spark.serializer",
                     "org.apache.spark.serializer.KryoSerializer")
@@ -27,7 +29,8 @@ def init_spark():
 
     print('Spark Session created')
     print('Parameters:')
-    print(sess.sparkContext.getConf().getAll())
+    for param in sess.sparkContext.getConf().getAll():
+        print(f"\t{param[0]}: {param[1]}")
     return sess
 
 def get_with_retry(
