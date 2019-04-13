@@ -6,9 +6,9 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 #SBATCH --account=def-glatard
-#SBATCH --time=01:00:00
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
+#SBATCH --time=03:00:00
+#SBATCH --nodes=2
+#SBATCH --ntasks=2
 #SBATCH --mem=40G
 #SBATCH --cpus-per-task=32
 #SBATCH --ntasks-per-node=1
