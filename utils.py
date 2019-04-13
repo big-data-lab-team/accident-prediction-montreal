@@ -24,7 +24,7 @@ def init_spark():
                     "org.apache.spark.serializer.KryoSerializer")
             # In local mode there is only one executor: the driver
             # .config("spark.executor.memory", "1536m")
-            .config("spark.driver.memory", "6g")
+            .config("spark.driver.memory", "3g")
             # Prevent time out errors see: https://github.com/rjagerman/mammoth
             # /wiki/ExecutorLost-Failure:-Heartbeat-timeouts
             .config("spark.cleaner.periodicGC.interval", "5min")
