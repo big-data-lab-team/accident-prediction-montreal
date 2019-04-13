@@ -20,6 +20,7 @@ coverage = "*"
 matplotlib = "*"
 pyarrow = "*"
 pyspark = "*"
+py4j = "*"
 
 [requires]
 python_version = "3.7"
