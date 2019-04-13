@@ -17,7 +17,7 @@ def random_forest_tuning(train_samples):
          .addGrid(rf.numTrees, [10, 50, 100])
          .addGrid(rf.featureSubsetStrategy, ['onethird', 'sqrt', 'log2'])
          .addGrid(rf.impurity, ['entropy', 'gini'])
-         .addGrid(rf.maxDepth, [5, 10, 12])
+         .addGrid(rf.maxDepth, [5, 10, 30])
          .addGrid(rf.minInstancesPerNode, [1, 5, 10, 50, 100])
          .addGrid(rf.subsamplingRate, [1.0, 0.66, 0.5, 0.33])
          .build())
