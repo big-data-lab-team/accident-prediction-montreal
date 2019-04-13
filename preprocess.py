@@ -356,7 +356,7 @@ def add_date_features(samples):
     samples = add_cyclic_feature(samples, dayofmonth('date'), 'day', 31)
 
     samples = samples.withColumn('dayofweek', dayofweek('date'))
-    encoder = OneHotEncoder(inputCol='dayofweek', outputCol="dayofweek_onehot")
+    encoder = OneHotEncoder(inputCols=['dayofweek'], outputCols=["dayofweek_onehot"])
     samples = encoder.transform(samples).drop('dayofweek')
 
     return samples
