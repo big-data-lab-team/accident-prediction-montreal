@@ -6,6 +6,7 @@ from pyspark.sql.types import DoubleType
 from pyspark.sql.functions import udf, col
 import pandas as pd
 import numpy as np
+from preprocess import features_col
 
 
 def random_forest_tuning(train_samples):
@@ -84,3 +85,12 @@ def compute_precision_recall_graph(predictions, n_points):
                          columns=['Threshold', 'Precision', 'Recall'])
 
     return graph
+
+
+def get_feature_importances(model):
+    feature_importances = pd.DataFrame(model.featureImportances.toArray())
+    dayofweek_features = [f'{features_col[-1]}_{i}' for i in range(1, 8)]
+    feature_names = features_col[:-1] + dayofweek_features
+    feature_importances.index = feature_names
+    feature_importances.columns = ["Feature importances"]
+    return feature_importances
