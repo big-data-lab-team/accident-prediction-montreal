@@ -16,7 +16,7 @@ def raise_parquet_not_del_error(cache):
 
 
 def init_spark():
-    return (SparkSession
+    sess = (SparkSession
             .builder
             .appName("Accident prediction")
             .config("spark.rdd.compress", "True")
@@ -25,6 +25,10 @@ def init_spark():
             .config("spark.network.timeout", "300s")
             .getOrCreate())
 
+    print('Spark Session created')
+    print('Parameters:')
+    print(sess.sparkContext.getConf().getAll())
+    return sess
 
 def get_with_retry(
     url,
