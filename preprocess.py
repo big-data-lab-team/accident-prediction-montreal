@@ -356,7 +356,7 @@ def add_date_features(samples):
     samples = add_cyclic_feature(samples, dayofmonth('date'), 'day', 31)
 
     samples = samples.withColumn('dayofweek', dayofweek('date'))
-    encoder = OneHotEncoder(inputCol='dayofweek', outputCol="dayofweek_onehot")
+    encoder = OneHotEncoder(inputCols=['dayofweek'], outputCols=["dayofweek_onehot"])
     samples = encoder.transform(samples).drop('dayofweek')
 
     return samples
@@ -423,3 +423,11 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'date', 'hour', 'features', 'label'))
 
     return df
+
+
+def random_undersampling(pos_samples, neg_samples, target_ratio):
+    neg_count = neg_samples.count()
+    pos_count = pos_samples.count()
+    current_ratio = neg_count/pos_count
+    sampling = target_ratio/current_ratio
+    return neg_samples.sample(sampling)

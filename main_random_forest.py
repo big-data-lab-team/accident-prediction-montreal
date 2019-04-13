@@ -18,6 +18,7 @@ pos_samples = get_positive_samples(spark)
 df = get_dataset_df(spark, pos_samples, neg_samples)
 df_sample = df.filter(col('date') > datetime.fromisoformat('2017-01-01'))
 (train_set, test_set) = df_sample.randomSplit([0.7, 0.3])
+(train_set, test_set) = (train_set.persist(), test_set.persist())
 
 model = random_forest_tuning(train_set)
 

@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --job-name=positive_samples
 #SBATCH --mail-user=guedon@et.esiea.fr
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
@@ -6,14 +7,14 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 #SBATCH --account=def-glatard
-#SBATCH --time=03:00:00
+#SBATCH --time=00:30:00
 #SBATCH --nodes=2
 #SBATCH --ntasks=2
-#SBATCH --mem=40G
-#SBATCH --cpus-per-task=32
+#SBATCH --mem=30G
+#SBATCH --cpus-per-task=20
 #SBATCH --ntasks-per-node=1
 
-module load spark/2.3.0
+module load spark/custom
 module load python/3.7
 
 source ~/acc_env/bin/activate
@@ -53,7 +54,7 @@ preprocess=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montre
 utils=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/utils.py
 random_forest=/home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/random_forest.py
 
-srun -n 1 -N 1 spark-submit --master ${MASTER_URL} --executor-memory ${SLURM_SPARK_MEM}M /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main_negative_samples.py --py-files ${acc} ${road} ${weather} ${preprocess} ${utils} ${random_forest}
+srun -n 1 -N 1 spark-submit --master ${MASTER_URL} --executor-memory ${SLURM_SPARK_MEM}M /home/tguedon/projects/def-glatard/tguedon/accident-prediction-montreal/main_${SLURM_JOB_NAME}.py --py-files ${acc} ${road} ${weather} ${preprocess} ${utils} ${random_forest}
 
 kill $slaves_pid
 stop-master.sh
