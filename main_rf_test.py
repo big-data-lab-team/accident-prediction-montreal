@@ -23,9 +23,9 @@ df_sample = df.filter(col('date') > datetime.fromisoformat('2017-01-01')).persis
 
 (train_set, test_set) = df_sample.randomSplit([0.7, 0.3])
 
-rf = RandomForestClassifier(labelCol="label", featuresCol="features", cacheNodeIds=True, maxDepth=60)
+rf = RandomForestClassifier(labelCol="label", featuresCol="features", cacheNodeIds=True, maxDepth=30)
 model = rf.fit(train_set)
 predictions = model.transform(test_set)
 evaluate_binary_classifier(predictions)
 graph = compute_precision_recall_graph(predictions, 20)
-graph.to_parquet(workdir + 'data/precision_recall_graph_rf_maxdepth30_randomundersampling1.parquet')
+graph.to_csv(workdir + 'data/precision_recall_graph_rf_maxdepth30_randomundersampling2.csv')
