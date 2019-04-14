@@ -219,7 +219,7 @@ def get_negative_samples(spark, use_cache=True, save_to=None, road_limit=None,
 
     year_limit: int or tuple of int
     """
-    cache_path = workdir + '/data/negative-samples.parquet'
+    cache_path = workdir + 'data/negative-samples.parquet'
     if isdir(cache_path) and use_cache and save_to is None:
         return spark.read.parquet(cache_path)
     if save_to is not None:
@@ -356,8 +356,10 @@ def add_date_features(samples):
     samples = add_cyclic_feature(samples, dayofmonth('date'), 'day', 31)
 
     samples = samples.withColumn('dayofweek', dayofweek('date'))
-    encoder = OneHotEncoder(inputCols=['dayofweek'], outputCols=["dayofweek_onehot"])
-    samples = encoder.transform(samples).drop('dayofweek')
+    encoder = OneHotEncoder(inputCols=['dayofweek'],
+                            outputCols=["dayofweek_onehot"])
+    encoder_model = encoder.fit(samples)
+    samples = encoder_model.transform(samples).drop('dayofweek')
 
     return samples
 
