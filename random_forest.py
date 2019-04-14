@@ -19,13 +19,13 @@ def random_forest_tuning(train_samples):
     pipeline = Pipeline().setStages([ru, rf])
     paramGrid = \
         (ParamGridBuilder()
-         .addGrid(rf.numTrees, [10, 50, 100])
-         .addGrid(rf.featureSubsetStrategy, ['onethird', 'sqrt', 'log2'])
-         .addGrid(rf.impurity, ['entropy', 'gini'])
-         .addGrid(rf.maxDepth, [5, 10, 30])
-         .addGrid(rf.minInstancesPerNode, [1, 5, 10, 50, 100])
-         .addGrid(rf.subsamplingRate, [1.0, 0.66, 0.5, 0.33])
-         .addGrid(ru.targetImbalanceRatio, [1.0, 2.0, 3.0, 5.0, 7.0])
+         .addGrid(rf.numTrees, [60, 80, 100])
+         .addGrid(rf.featureSubsetStrategy, ['sqrt'])
+         .addGrid(rf.impurity, ['entropy'])
+         .addGrid(rf.maxDepth, [30])
+         .addGrid(rf.minInstancesPerNode, [1])
+         .addGrid(rf.subsamplingRate, [0.8, 0.7, 0.66, 0.6])
+         .addGrid(ru.targetImbalanceRatio, [1.0])
          .build())
     pr_evaluator = \
         BinaryClassificationEvaluator(labelCol="label",
