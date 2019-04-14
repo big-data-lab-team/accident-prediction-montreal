@@ -425,11 +425,3 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'date', 'hour', 'features', 'label'))
 
     return df
-
-
-def random_undersampling(pos_samples, neg_samples, target_ratio):
-    neg_count = neg_samples.count()
-    pos_count = pos_samples.count()
-    current_ratio = neg_count/pos_count
-    sampling = target_ratio/current_ratio
-    return neg_samples.sample(sampling)

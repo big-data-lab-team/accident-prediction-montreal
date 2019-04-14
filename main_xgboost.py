@@ -1,5 +1,5 @@
-# credits for integration of xgboost in pyspark: https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb
-
+# credits for integration of xgboost in pyspark:
+# https://towardsdatascience.com/pyspark-and-xgboost-integration-tested-on-the-kaggle-titanic-dataset-4e75a568bdb  # noqa
 from pyspark.sql import SparkSession
 from pyspark.ml import Pipeline
 from pyspark.sql.types import *
@@ -11,10 +11,12 @@ from utils import init_spark
 from preprocess import get_positive_samples, \
                        get_negative_samples, \
                        get_dataset_df
-os.environ['PYSPARK_SUBMIT_ARGS'] = '--jars data/xgboost4j-spark-0.72.jar,data/xgboost4j-0.72.jar pyspark-shell'
+os.environ['PYSPARK_SUBMIT_ARGS'] = \
+    '--jars data/xgboost4j-spark-0.72.jar,data/xgboost4j-0.72.jar ' \
+    + 'pyspark-shell'
 spark = init_spark()
 spark.sparkContext.addPyFile("data/sparkxgb.zip")
-from sparkxgb import XGBoostEstimator
+from sparkxgb import XGBoostEstimator  # noqa
 sc = spark.sparkContext
 sc.setLogLevel("OFF")
 
