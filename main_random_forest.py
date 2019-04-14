@@ -2,12 +2,12 @@
 from datetime import datetime
 from pyspark.sql.functions import col
 from random_forest import random_forest_tuning, \
-                          evaluate_model, \
                           compute_precision_recall, \
                           compute_precision_recall_graph
 from preprocess import get_positive_samples, \
                        get_negative_samples, \
                        get_dataset_df
+from evaluate import evaluate_binary_classifier
 from utils import init_spark
 from workdir import workdir
 
@@ -18,20 +18,21 @@ pos_samples = get_positive_samples(spark)
 df = get_dataset_df(spark, pos_samples, neg_samples)
 df_sample = df.filter(col('date') > datetime.fromisoformat('2017-01-01'))
 (train_set, test_set) = df_sample.randomSplit([0.7, 0.3])
-(train_set, test_set) = (train_set.persist(), test_set.persist())
 
 model = random_forest_tuning(train_set)
 
-model.save(workdir + 'data/random_forest.model')
-paramsMap = model.bestModel.extractParamMap()
-params = {k.name: paramsMap[k] for k in paramsMap}
-print('Params:')
-print(params)
+params = model.bestModel.stages[0].extractParamMap()
+for k in params:
+    print(f'{k.name}: {params[k]}')
+params = model.bestModel.stages[1].extractParamMap()
+for k in params:
+    print(f'{k.name}: {params[k]}')
+model.save(workdir + 'data/random_forest_tuning.model')
 
 predictions = model.transform(test_set)
-evaluate_model(predictions)
-precision, recall = compute_precision_recall(predictions, 0.01)
-print(f"Precision: {precision}, Recall: {recall}")
+area_under_PR, f1_score = evaluate_binary_classifier(predictions)
+with open(workdir + 'data/random_forest_tuning_perf.txt', 'w') as file:
+    file.write(f"Area Under PR = {area_under_PR}\nF1 score = {f1_score}")
 
 graph = compute_precision_recall_graph(predictions, 20)
 graph.to_parquet(workdir + 'data/precision_recall_graph_rf.parquet')

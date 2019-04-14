@@ -2,17 +2,21 @@ from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.ml.tuning import TrainValidationSplit, ParamGridBuilder
+from pyspark.ml import Pipeline
 from pyspark.sql.types import DoubleType
 from pyspark.sql.functions import udf, col
 import pandas as pd
 import numpy as np
 from preprocess import features_col
+from random_undersampler import RandomUnderSampler 
 
 
 def random_forest_tuning(train_samples):
     rf = RandomForestClassifier(labelCol="label",
-                                featuresCol="features")
-
+                                featuresCol="features",
+                                cacheNodeIds=True)
+    ru = RandomUnderSampler()
+    pipeline = Pipeline().setStages([ru, rf])
     paramGrid = \
         (ParamGridBuilder()
          .addGrid(rf.numTrees, [10, 50, 100])
@@ -21,15 +25,17 @@ def random_forest_tuning(train_samples):
          .addGrid(rf.maxDepth, [5, 10, 30])
          .addGrid(rf.minInstancesPerNode, [1, 5, 10, 50, 100])
          .addGrid(rf.subsamplingRate, [1.0, 0.66, 0.5, 0.33])
+         .addGrid(ru.targetImbalanceRatio, [1.0, 2.0, 3.0, 5.0, 7.0])
          .build())
     pr_evaluator = \
         BinaryClassificationEvaluator(labelCol="label",
                                       rawPredictionCol="rawPrediction",
                                       metricName="areaUnderPR")
-    tvs = TrainValidationSplit(estimator=rf,
+    tvs = TrainValidationSplit(estimator=pipeline,
                                estimatorParamMaps=paramGrid,
                                evaluator=pr_evaluator,
-                               trainRatio=0.7)
+                               trainRatio=0.7,
+                               collectSubModels=True)
 
     model = tvs.fit(train_samples)
 
