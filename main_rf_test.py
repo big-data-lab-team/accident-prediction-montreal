@@ -19,13 +19,19 @@ pos_samples = get_positive_samples(spark)
 neg_samples = random_undersampling(pos_samples, neg_samples, target_ratio=2.0)
 
 df = get_dataset_df(spark, pos_samples, neg_samples)
-df_sample = df.filter(col('date') > datetime.fromisoformat('2017-01-01')).persist()
+df_sample = (df
+             .filter(col('date') > datetime.fromisoformat('2017-01-01'))
+             .persist())
 
 (train_set, test_set) = df_sample.randomSplit([0.7, 0.3])
 
-rf = RandomForestClassifier(labelCol="label", featuresCol="features", cacheNodeIds=True, maxDepth=60)
+rf = RandomForestClassifier(labelCol="label",
+                            featuresCol="features",
+                            cacheNodeIds=True,
+                            maxDepth=60)
 model = rf.fit(train_set)
 predictions = model.transform(test_set)
 evaluate_binary_classifier(predictions)
 graph = compute_precision_recall_graph(predictions, 20)
-graph.to_parquet(workdir + 'data/precision_recall_graph_rf_maxdepth30_randomundersampling1.parquet')
+graph.to_parquet(workdir + 'data/precision_recall_graph_rf_maxdepth30'
+                 + '_randomundersampling2.parquet')

@@ -1,6 +1,7 @@
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
+
 def evaluate_binary_classifier(predictions):
     PR_evaluator = \
         BinaryClassificationEvaluator(labelCol="label",
