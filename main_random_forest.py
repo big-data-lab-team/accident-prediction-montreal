@@ -13,8 +13,8 @@ from workdir import workdir
 
 spark = init_spark()
 
-neg_samples = get_negative_samples(spark)
-pos_samples = get_positive_samples(spark)
+neg_samples = get_negative_samples(spark).sample(0.05)
+pos_samples = get_positive_samples(spark).sample(0.05)
 df = get_dataset_df(spark, pos_samples, neg_samples)
 df_sample = df.filter(col('date') > datetime.fromisoformat('2017-01-01'))
 (train_set, test_set) = df_sample.randomSplit([0.7, 0.3])
@@ -27,12 +27,12 @@ for k in params:
 params = model.bestModel.stages[1].extractParamMap()
 for k in params:
     print(f'{k.name}: {params[k]}')
-model.save(workdir + 'data/random_forest_tuning.model')
+model.save(workdir + 'data/random_forest_tuning_s.model')
 
 predictions = model.transform(test_set)
 area_under_PR, f1_score = evaluate_binary_classifier(predictions)
-with open(workdir + 'data/random_forest_tuning_perf.txt', 'w') as file:
+with open(workdir + 'data/random_forest_tuning_perf_s.txt', 'w') as file:
     file.write(f"Area Under PR = {area_under_PR}\nF1 score = {f1_score}")
 
 graph = compute_precision_recall_graph(predictions, 20)
-graph.to_parquet(workdir + 'data/precision_recall_graph_rf.parquet')
+graph.to_csv(workdir + 'data/precision_recall_graph_rf_s.parquet')
