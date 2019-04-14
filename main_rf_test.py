@@ -28,10 +28,10 @@ df_sample = (df
 rf = RandomForestClassifier(labelCol="label",
                             featuresCol="features",
                             cacheNodeIds=True,
-                            maxDepth=60)
+                            maxDepth=30)
 model = rf.fit(train_set)
 predictions = model.transform(test_set)
 evaluate_binary_classifier(predictions)
 graph = compute_precision_recall_graph(predictions, 20)
-graph.to_parquet(workdir + 'data/precision_recall_graph_rf_maxdepth30'
-                 + '_randomundersampling2.parquet')
+graph.to_csv(workdir + 'data/precision_recall_graph_rf_'
+             + 'randomundersampling2.csv')
