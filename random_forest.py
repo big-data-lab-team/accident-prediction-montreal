@@ -19,12 +19,12 @@ def random_forest_tuning(train_samples):
     pipeline = Pipeline().setStages([ru, rf])
     paramGrid = \
         (ParamGridBuilder()
-         .addGrid(rf.numTrees, [60, 80, 100])
+         .addGrid(rf.numTrees, [100, 110, 115, 120, 130])
          .addGrid(rf.featureSubsetStrategy, ['sqrt'])
          .addGrid(rf.impurity, ['entropy'])
          .addGrid(rf.maxDepth, [30])
          .addGrid(rf.minInstancesPerNode, [1])
-         .addGrid(rf.subsamplingRate, [0.8, 0.7, 0.66, 0.6])
+         .addGrid(rf.subsamplingRate, [0.8])
          .addGrid(ru.targetImbalanceRatio, [1.0])
          .build())
     pr_evaluator = \
