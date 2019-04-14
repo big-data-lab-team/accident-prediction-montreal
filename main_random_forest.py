@@ -21,18 +21,19 @@ df_sample = df.filter(col('date') > datetime.fromisoformat('2017-01-01'))
 
 model = random_forest_tuning(train_set)
 
-params = model.bestModel.stages[0].extractParamMap()
-for k in params:
-    print(f'{k.name}: {params[k]}')
-params = model.bestModel.stages[1].extractParamMap()
-for k in params:
-    print(f'{k.name}: {params[k]}')
-model.save(workdir + 'data/random_forest_tuning_s.model')
+with open(workdir + 'data/random_forest_tuning_results.txt', 'w') as file:
+    for model, result in zip(model.subModels, model.validationMetrics):
+        file.write('==================================')
+        for stage in model.bestModel.stages:
+            params = stage.extractParamMap()
+            for k in params:
+                file.write(f'{k.name}: {params[k]}')
+        file.write(f"Area under PR: {result}")
 
 predictions = model.transform(test_set)
 area_under_PR, f1_score = evaluate_binary_classifier(predictions)
-with open(workdir + 'data/random_forest_tuning_perf_s.txt', 'w') as file:
+with open(workdir + 'data/random_forest_tuning_perf_1.txt', 'w') as file:
     file.write(f"Area Under PR = {area_under_PR}\nF1 score = {f1_score}")
 
 graph = compute_precision_recall_graph(predictions, 20)
-graph.to_csv(workdir + 'data/precision_recall_graph_rf_s.parquet')
+graph.to_csv(workdir + 'data/precision_recall_graph_rf_1.parquet')
