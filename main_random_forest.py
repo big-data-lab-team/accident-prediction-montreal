@@ -23,12 +23,12 @@ model = random_forest_tuning(train_set)
 
 with open(workdir + 'data/random_forest_tuning_results.txt', 'w') as file:
     for model, result in zip(model.subModels, model.validationMetrics):
-        file.write('==================================')
-        for stage in model.bestModel.stages:
+        file.write('==================================\n')
+        for stage in model.stages:
             params = stage.extractParamMap()
             for k in params:
-                file.write(f'{k.name}: {params[k]}')
-        file.write(f"Area under PR: {result}")
+                file.write(f'{k.name}: {params[k]}\n')
+        file.write(f"Area under PR: {result}\n")
 
 predictions = model.transform(test_set)
 area_under_PR, f1_score = evaluate_binary_classifier(predictions)
@@ -36,4 +36,4 @@ with open(workdir + 'data/random_forest_tuning_perf_1.txt', 'w') as file:
     file.write(f"Area Under PR = {area_under_PR}\nF1 score = {f1_score}")
 
 graph = compute_precision_recall_graph(predictions, 20)
-graph.to_csv(workdir + 'data/precision_recall_graph_rf_1.parquet')
+graph.to_csv(workdir + 'data/precision_recall_graph_rf_1.csv')
