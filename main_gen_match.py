@@ -1,7 +1,11 @@
 #!/usr/bin/env python
-
 import os
 from functools import reduce
+import datetime
+from os.path import isdir
+from pyspark.sql.functions import col
+from pyspark.sql import Window
+from pyspark.sql import DataFrame
 from utils import init_spark
 from workdir import workdir
 from preprocess import preprocess_accidents, \
@@ -10,10 +14,6 @@ from preprocess import preprocess_accidents, \
                        match_accidents_with_roads
 from road_network import get_road_df
 from accidents_montreal import get_accident_df
-import datetime
-from os.path import isdir
-from pyspark.sql.functions import col
-from pyspark.sql import DataFrame
 
 
 def generate_match_accident_road_of_one_month(year, month):
@@ -23,7 +23,7 @@ def generate_match_accident_road_of_one_month(year, month):
     print(f'Generating {year}-{month}')
     spark = init_spark()
     road_df = get_road_df(spark, use_cache=True)
-    accident_df = preprocess_accidents(get_accident_df(spark, False))
+    accident_df = preprocess_accidents(get_accident_df(spark))
 
     start_day_str = f'{year}-{month:02}-01'
     if month == 12:
@@ -45,7 +45,6 @@ def generate_match_accident_road_of_one_month(year, month):
 
     match_accident_road.write.parquet(filepath)
     spark.stop()  # Force garbage collection and empty temp dir
-
 
 for year in range(2012, 2018):
     for month in range(1, 13):

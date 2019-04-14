@@ -52,8 +52,8 @@ def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
                     .select(['street_id', 'center_long', 'center_lat'])
                     .drop_duplicates())
 
-    accident_window = (Window.partitionBy("accident_id")
-                       .orderBy("distance_measure"))
+    acc_window = (Window.partitionBy("accident_id")
+                  .orderBy("distance_measure"))
     accidents_top_k_roads = (accident_df
                              .select('loc_lat', 'loc_long', 'accident_id')
                              .crossJoin(road_centers)
@@ -67,7 +67,7 @@ def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
                                          distance_measure())
                              .select('accident_id', 'street_id',
                                      'distance_measure', 'loc_lat', 'loc_long',
-                                     rank().over(accident_window)
+                                     rank().over(acc_window)
                                      .alias('distance_rank'))
                              .filter(col('distance_rank') <=
                                      nb_top_road_center_preselected)
@@ -90,7 +90,7 @@ def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
                                            'coord_long', 'street_id',
                                            'street_name',
                                            row_number()
-                                           .over(accident_window)
+                                           .over(acc_window)
                                            .alias('distance_rank'),
                                            'distance_measure')
                                    .filter(col('distance_rank') == 1)
@@ -128,7 +128,7 @@ def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
                      distance_measure())
          .select('accident_id', 'street_id',
                  'distance_measure', 'loc_lat', 'loc_long',
-                 rank().over(accident_window)
+                 rank().over(acc_window)
                  .alias('distance_rank'))
          .filter(col('distance_rank') <=
                  nb_top_road_center_preselected)
@@ -167,15 +167,35 @@ def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
          .withColumn('distance_measure', distance_measure())
          .select('accident_id', 'street_id', 'loc_lat', 'loc_long',
                  'coord_lat', 'coord_long',
-                 row_number().over(accident_window).alias('distance_rank'))
+                 row_number().over(acc_window).alias('distance_rank'))
          .filter(col('distance_rank') == 1)
          .drop('distance_rank', 'loc_lat', 'loc_long',
                'coord_lat', 'coord_long'))
 
     # Union accidents matched correctly with first method with the accidents
     # for which we used more street points
-    return (accidents_road_correct_match
-            .union(accidents_roads_first_match_with_additional_coords))
+    final_match = (accidents_road_correct_match
+                   .union(accidents_roads_first_match_with_additional_coords))
+
+    # Make sure there is only one road per accident
+    final_match = (final_match
+                   .join(road_centers, 'street_id')
+                   .join(accident_df.select('loc_lat',
+                                            'loc_long',
+                                            'accident_id'),
+                         'accident_id')
+                   .withColumn('distance_inter',
+                               distance_intermediate_formula(
+                                    'loc_lat',
+                                    'loc_long',
+                                    'center_lat',
+                                    'center_long'))
+                   .withColumn('distance_measure', distance_measure())
+                   .withColumn('dist_rank', row_number().over(acc_window))
+                   .filter(col('dist_rank') == 1)
+                   .select('accident_id', 'street_id'))
+
+    return final_match
 
 
 def generate_dates_in_year_df(year, spark):
