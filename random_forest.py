@@ -1,7 +1,7 @@
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-from pyspark.ml.tuning import TrainValidationSplit, ParamGridBuilder
+from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 from pyspark.ml import Pipeline
 from pyspark.sql.types import DoubleType
 from pyspark.sql.functions import udf, col
@@ -19,23 +19,22 @@ def random_forest_tuning(train_samples):
     pipeline = Pipeline().setStages([ru, rf])
     paramGrid = \
         (ParamGridBuilder()
-         .addGrid(rf.numTrees, [100, 110, 115, 120, 130])
+         .addGrid(rf.numTrees, [100, 115, 130])
          .addGrid(rf.featureSubsetStrategy, ['sqrt'])
          .addGrid(rf.impurity, ['entropy'])
          .addGrid(rf.maxDepth, [30])
          .addGrid(rf.minInstancesPerNode, [1])
-         .addGrid(rf.subsamplingRate, [0.8])
-         .addGrid(ru.targetImbalanceRatio, [1.0])
+         .addGrid(rf.subsamplingRate, [0.8, 0.6])
+         .addGrid(ru.targetImbalanceRatio, [1.0, 1.5, 1.25])
          .build())
     pr_evaluator = \
         BinaryClassificationEvaluator(labelCol="label",
                                       rawPredictionCol="rawPrediction",
                                       metricName="areaUnderPR")
-    tvs = TrainValidationSplit(estimator=pipeline,
-                               estimatorParamMaps=paramGrid,
-                               evaluator=pr_evaluator,
-                               trainRatio=0.7,
-                               collectSubModels=True)
+    tvs = CrossValidator(estimator=pipeline,
+                         estimatorParamMaps=paramGrid,
+                         evaluator=pr_evaluator,
+                         collectSubModels=True)
 
     model = tvs.fit(train_samples)
 
