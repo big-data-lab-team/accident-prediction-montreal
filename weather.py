@@ -9,7 +9,7 @@ from pyspark.sql.types import StructField, FloatType, StructType, \
 from requests import get
 import pandas as pd
 from utils import get_with_retry as get
-
+from workdir import workdir
 
 COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Rel Hum (%)',
@@ -64,7 +64,7 @@ def get_weather_station_id_df(spark, accident_df):
     ''' Generate dataframe with the station ids of all stations necessary for
         given accident dataframe
     '''
-    cache_file = 'data/weather_stations_id.parquet'
+    cache_file = workdir + 'data/weather_stations_id.parquet'
     if isdir(cache_file):
         print('Skip downloading weather station ids: already done')
         return spark.read.parquet(cache_file)
@@ -115,7 +115,7 @@ def get_weather_station_weather_df(spark, stations_id):
     ''' Download the weather station data during all hours of
         the 5 years for given station ids and return a dataframe
     '''
-    cache_file = 'data/weather_stations.parquet'
+    cache_file = workdir + 'data/weather_stations.parquet'
     if isdir(cache_file):
         print('Skip downloading weather station: already done')
         return spark.read.parquet(cache_file)
@@ -189,7 +189,7 @@ def get_weather_station_coords(station_id):
 
 
 def get_weather_station_coords_df(spark, stations_id):
-    cache_file = 'data/station_coords.parquet'
+    cache_file = workdir + 'data/station_coords.parquet'
     if isdir(cache_file):
         print('Skip downloading weather station coordinates: already done')
         return spark.read.parquet(cache_file)
