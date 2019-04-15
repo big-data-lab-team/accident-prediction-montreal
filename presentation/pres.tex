@@ -155,14 +155,15 @@
 \begin{itemize}
 \item[] \textbf{Context}:
   \begin{itemize}
-    \item Road accidents implies millions of people deaths and injuries every year.
+    \item Road accidents result in millions of people deaths and injuries every year.
 		\item Human and economic impact on society.
     \item Master’s thesis of Antoine Hébert in a different context.
   \end{itemize}
 
 \item[] \textbf{Our goals}:
   \begin{itemize}
-    \item Dataset analysis.
+    \item Dataset assembling.
+    \item Predict the risk of road accident at a given time on a given road.
   	\item Finding key insights in accident prediction.
   	\item Identifying issues related to class imbalance and geo-spatial data.
   \end{itemize}
@@ -189,12 +190,11 @@ We used open datasets from Open Canada.
 \item[] \textbf{National Road Network}:
   \begin{itemize}
     \item Shape of the road, how roads are
-connected together, the mail addresses on the street, the number of lanes in each direction and the
-type of pavement.
+connected together, the mail addresses on the street, etc.
   \end{itemize}
 \item[] \textbf{Climate data - Hourly Data Report}:
   \begin{itemize}
-    \item For each position and hour, the dataset provides the temperature, the humidity, the wind speed and direction, the visibility, the atmospheric pressure etc.
+    \item The dataset provides the temperature, the humidity, the wind speed and direction, the visibility, the atmospheric pressure etc. at different weather stations in Montreal.
   \end{itemize}
 \end{itemize}
 
@@ -229,22 +229,29 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 %-------------------------------------------------
 
 \begin{frame}
-	\frametitle{Generating the negative samples}
-	\begin{itemize}
-    \item Every time an accident did not happen is considered a negative sample.
-		\item We extracted a subsample from the cartesian product between all dates (between 01/01/2012 and 31/12/2017) and all roads.
-		\item Generation of 5 million negative samples for about 200 000 positive samples.
+	\frametitle{Generating the examples}
+  \begin{itemize}
+  \item[] \textbf{Positive samples}:
+    \begin{itemize}
+      \item Identification of road for each accident: Computation of the distances between roads and accidents using their GPS coordinates (taking into account earth curvature)
+		  \item Extrapolation of missing points on the roads for more precise road identification
+    \end{itemize}
+  \item[] \textbf{Negative samples}:
+    \begin{itemize}
+      \item Every time an accident did not happen is considered a negative sample.
+  		\item We extracted a subsample from the cartesian product between all dates (between 01/01/2012 and 31/12/2017) and all roads.
+  		\item Generation of 5 million negative samples for about 200 000 positive samples.
+    \end{itemize}
+
 	\end{itemize}
 \end{frame}
 
 \begin{frame}
 	\frametitle{Some feature engineering}
 	\begin{itemize}
-		\item Computation of the distances between roads and accidents using their GPS coordinates (taking into account earth curvature)
 		\item Transformation of the dates and times into a cyclic format
-		\item Extrapolation of missing points on the roads (defined by a limited number of points in a KML format)
     \item Interpolation of weather statistics at a given point by averaging data collected from several stations
-    \item etc...
+    \item Road features: street type and length
 	\end{itemize}
 \end{frame}
 
@@ -304,7 +311,7 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 
   \item[] \textbf{BRF versus WRF}:
     \begin{itemize}
-      \item No clear winner ! But...
+      \item No clear winner in terms of prediction power ! But...
       \item WRF - More vulnerable to noise on minority class (\cite{Chen2004})
       \item BRF - More computationally efficient because use less data (subsampling) (\cite{Chen2004})
       \item BRF - Easier to implement in Spark (see next slide)
@@ -338,14 +345,15 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 \begin{frame}
 \frametitle{Experimenting with our BRF implementation}
 \begin{itemize}
-  \item Area Under PR : 99,3\% for WRF VS 99,7\% for BRF
-  \item F1 score : 99\% for WRF VS 98\% for BRF (which proves that F1 score can be misleading in the context of class imbalance)
+  \item Area Under PR : 98,1\% for RF VS 98,7\% for BRF
+  \item F1 score : 99.7\% for RF VS 98.8\% for BRF (which proves that F1 score can be misleading in the context of class imbalance)
+  \item With BRF, we detect more accidents but it increases the false positive rate.
 
 \end{itemize}
 
 \centering
-\includegraphics[height=3.5cm, keepaspectratio]{Figures/BRF.png}
-\includegraphics[height=3.5cm, keepaspectratio]{Figures/WRF.png}
+\includegraphics[height=3.0cm, keepaspectratio]{Figures/RF.png}
+\includegraphics[height=3.0cm, keepaspectratio]{Figures/BRF.png}
 
 \end{frame}
 
@@ -356,12 +364,11 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 \begin{frame}
 	\frametitle{Dataset generation}
 	\begin{itemize}
-		\item Using slurm-based (scheduler) cluster to increase the dataset generation's speed.
+		\item Using cluster to increase the dataset generation's speed.
     \item Tricks to increase the generation speed and reduce the memory consumption.
 	\end{itemize}
 \centering
-\includegraphics[height=3.5cm, keepaspectratio]{Figures/timeVSsamples_generatepositivesamples.png}
-\includegraphics[height=3.5cm, keepaspectratio]{Figures/timeVSsamples_generatepositivesamples_after.png}
+\includegraphics[height=5.0cm, keepaspectratio]{Figures/timeVSsamples_generatepositivesamples.png}
 \end{frame}
 
 \begin{frame}
@@ -378,7 +385,6 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
         \item We found ourselves writing a lot more code using Dask than using Spark
         \item We found Spark easier to use for processing the dataset in batch
         \item Spark's map-reduce and shuffling operations are very handy
-        \item Spark ML pipelines allow to create processing pipelines easily
       \end{itemize}
 	\end{itemize}
 \end{frame}
@@ -388,12 +394,14 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 %-------------------------------------------------
 
 \begin{frame}
-	\frametitle{Comparison between the algorithms}
+	\frametitle{Results}
 	\begin{itemize}
-		\item Random forest
-		\item Balanced random forest
-		\item XGBoost
+		\item Random forest: 15.3\% area under PR curve
+		\item Balanced random forest: 17.2\% area under PR curve
 	\end{itemize}
+\centering
+\includegraphics[height=4cm, keepaspectratio]{Figures/rf_results.png}
+\includegraphics[height=4cm, keepaspectratio]{Figures/nohyperparam_brf.png}
 \end{frame}
 
 \begin{frame}
@@ -414,9 +422,9 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 	\frametitle{Conclusion}
 	\begin{itemize}
     \item We found some key features that can explain the occurence of accidents.
-    \item We identified some issues related to class imbalance and big data analytics.
+    \item We identified some solution to deal with class imbalance and big data-related issues.
     \item We implemented BRF in Spark.
-    \item Future work would include tuning the XGBoost classifier, testing lightGBM classifier, adding some datasets like a road works dataset.
+    \item Future work would include tuning the XGBoost classifier, adding some datasets like a road works dataset.
     \item The code can be found on Github at https://github.com/GTimothee/accident-prediction-montreal
 	\end{itemize}
 \end{frame}
