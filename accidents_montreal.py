@@ -11,7 +11,7 @@ from pyspark.sql.types import StringType, BooleanType, IntegerType, \
 from pyspark.sql.functions import monotonically_increasing_id
 from utils import raise_parquet_not_del_error
 from shutil import rmtree
-
+from workdir import workdir
 
 def get_accident_df(spark, use_cache=True):
     fetch_accidents_montreal()
@@ -19,9 +19,9 @@ def get_accident_df(spark, use_cache=True):
 
 
 def fetch_accidents_montreal():
-    if not os.path.isdir('data'):
-        os.mkdir('data')
-    if isfile('data/accidents-montreal.lock'):
+    if not os.path.isdir(workdir + 'data'):
+        os.mkdir(workdir + 'data')
+    if isfile(workdir + 'data/accidents-montreal.lock'):
         print('Skip fetching montreal accidents dataset: already downloaded')
         return
     url = 'http://donnees.ville.montreal.qc.ca/dataset/'\
@@ -33,24 +33,24 @@ def fetch_accidents_montreal():
                         'documentation.pdf'
     print('Fetching montreal accidents dataset...')
     try:
-        urlretrieve(url, 'data/accidents-montreal.zip')
+        urlretrieve(url, workdir + 'data/accidents-montreal.zip')
         urlretrieve(url_variable_desc,
-                    'data/accident-montreal-documentation.pdf')
+                    workdir + 'data/accident-montreal-documentation.pdf')
         print('Fetching montreal accidents dataset: done')
-        open('data/accidents-montreal.lock', 'w').close()
+        open(workdir + 'data/accidents-montreal.lock', 'w').close()
     except (URLError, HTTPError):
         print('Unable to find montreal accidents dataset.')
 
 
 def extract_accidents_montreal_df(spark, use_cache=True):
-    cache = 'data/accidents.parquet'
+    cache = workdir + 'data/accidents.parquet'
     if (os.path.isdir(cache) or os.path.isfile(cache)) and use_cache:
         print('Skip extraction of accidents montreal dataframe:'
               ' already done, reading from file')
         return spark.read.parquet(cache)
 
     # We read directly from ZIP to avoid disk IO
-    file = (BytesIO(ZipFile('data/accidents-montreal.zip', 'r')
+    file = (BytesIO(ZipFile(workdir + 'data/accidents-montreal.zip', 'r')
             .read('Accidents_2012_2017/Accidents_2012_2017.csv')))
     pddf = pd.read_csv(file)
 

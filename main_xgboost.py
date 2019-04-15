@@ -11,11 +11,13 @@ from utils import init_spark
 from preprocess import get_positive_samples, \
                        get_negative_samples, \
                        get_dataset_df
+from workdir import workdir
+
 os.environ['PYSPARK_SUBMIT_ARGS'] = \
     '--jars data/xgboost4j-spark-0.72.jar,data/xgboost4j-0.72.jar ' \
     + 'pyspark-shell'
 spark = init_spark()
-spark.sparkContext.addPyFile("data/sparkxgb.zip")
+spark.sparkContext.addPyFile(workdir + "data/sparkxgb.zip")
 from sparkxgb import XGBoostEstimator  # noqa
 sc = spark.sparkContext
 sc.setLogLevel("OFF")
