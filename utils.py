@@ -29,8 +29,9 @@ def init_spark():
             .config("spark.driver.memory", "3g")
             # Prevent time out errors see: https://github.com/rjagerman/mammoth
             # /wiki/ExecutorLost-Failure:-Heartbeat-timeouts
-            .config("spark.cleaner.periodicGC.interval", "5min")
-            .config("spark.network.timeout", "300s")
+            #.config("spark.cleaner.periodicGC.interval", "5min")
+            #.config("spark.network.timeout", "300s")
+            .config("spark.driver.extraClassPath", "data/xgboost4j-spark-0.72.jar:data/xgboost4j-0.72.jar")
             .getOrCreate())
 
     print('Spark Session created')
