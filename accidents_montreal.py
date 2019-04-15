@@ -45,7 +45,7 @@ def fetch_accidents_montreal():
 
 
 def read_accidents_montreal_df(spark, use_cache=True):
-    cache = workdir + 'data/accidents.parquet'
+    cache = workdir + 'data/accidents_montreal.parquet'
     if (os.path.isdir(cache) or os.path.isfile(cache)) and use_cache:
         print('Skip extraction of accidents montreal dataframe:'
               ' already done, reading from file')
