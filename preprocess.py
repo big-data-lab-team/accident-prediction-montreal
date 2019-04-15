@@ -292,8 +292,8 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     if isdir(cache_path) and use_cache:
         return spark.read.parquet(cache_path)
 
-    road_df = road_df or get_road_df(spark, not use_cache)
-    accident_df = get_accident_df(spark, not use_cache)
+    road_df = road_df or get_road_df(spark, use_cache)
+    accident_df = get_accident_df(spark, use_cache)
     accident_df = preprocess_accidents(accident_df)
 
     if year_limit is not None:
