@@ -31,14 +31,15 @@ def preprocess_accidents(accidents_df):
             .withColumn('date', to_date(col('DT_ACCDN'), format='yyyy/MM/dd'))
             .withColumn("hour", split(col('HEURE_ACCDN'), ':')[0].cast("int"))
             .drop('DT_ACCDN', 'HEURE_ACCDN')
-            .withColumnRenamed('LOC_LAT', 'loc_lat')
-            .withColumnRenamed('LOC_LONG', 'loc_long')
+            .withColumn('loc_lat', col('LOC_LAT').astype('double'))
+            .withColumn('loc_long', col('LOC_LONG').astype('double'))
+            .drop('LOC_LAT', 'LOC_LONG')
             .withColumnRenamed('ACCIDENT_ID', 'accident_id')
             .dropna())
 
 
 def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
-    cache_path = workdir + 'data/match_accident-road.parquet'
+    cache_path = workdir + 'data/matches_accident-road.parquet'
     if isdir(cache_path) and use_cache:
         print('Reading accident-road matches from cache...')
         return spark.read.parquet(cache_path)
