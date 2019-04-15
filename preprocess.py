@@ -33,7 +33,6 @@ def preprocess_accidents(accidents_df):
             .drop('DT_ACCDN', 'HEURE_ACCDN')
             .withColumn('loc_lat', col('LOC_LAT').astype('double'))
             .withColumn('loc_long', col('LOC_LONG').astype('double'))
-            .drop('LOC_LAT', 'LOC_LONG')
             .withColumnRenamed('ACCIDENT_ID', 'accident_id')
             .dropna())
 
