@@ -1,15 +1,3 @@
-@INPROCEEDINGS{Sharma2018, 
-author={M. {Sharma} and T. {Glatard} and É. {Gélinas} and M. {Tagmouti} and B. {Jaumard}}, 
-booktitle={2018 IEEE International Conference on Big Data (Big Data)}, 
-title={Service failure prediction in supply-chain networks}, 
-year={2018}, 
-volume={}, 
-number={}, 
-pages={1827-1836}, 
-keywords={customer satisfaction;customer services;data analysis;data mining;failure analysis;random forests;retailing;supply chain management;service failure prediction;supply-chain networks;delivery services;time window size;customer service;association rules;geographical location;human dispatchers;retailer company;random forests;data analysis;Feature extraction;Vegetation;Microsoft Windows;Companies;Vehicles;Big Data;Sensitivity}, 
-doi={10.1109/BigData.2018.8622044}, 
-ISSN={}, 
-month={Dec},}
 @Article{Breiman2001,
 author="Breiman, Leo",
 title="Random Forests",
@@ -25,37 +13,6 @@ issn="1573-0565",
 doi="10.1023/A:1010933404324",
 url="https://doi.org/10.1023/A:1010933404324"
 }
-@article{Genuer2010,
-title = "Variable selection using random forests",
-journal = "Pattern Recognition Letters",
-volume = "31",
-number = "14",
-pages = "2225 - 2236",
-year = "2010",
-issn = "0167-8655",
-doi = "https://doi.org/10.1016/j.patrec.2010.03.014",
-url = "http://www.sciencedirect.com/science/article/pii/S0167865510000954",
-author = "Robin Genuer and Jean-Michel Poggi and Christine Tuleau-Malot",
-keywords = "Random forests, Regression, Classification, Variable importance, Variable selection, High dimensional data",
-abstract = "This paper proposes, focusing on random forests, the increasingly used statistical method for classification and regression problems introduced by Leo Breiman in 2001, to investigate two classical issues of variable selection. The first one is to find important variables for interpretation and the second one is more restrictive and try to design a good parsimonious prediction model. The main contribution is twofold: to provide some experimental insights about the behavior of the variable importance index based on random forests and to propose a strategy involving a ranking of explanatory variables using the random forests score of importance and a stepwise ascending variable introduction strategy."
-}
-@Article{Cerda2018,
-author="Cerda, Patricio
-and Varoquaux, Ga{\"e}l
-and K{\'e}gl, Bal{\'a}zs",
-title="Similarity encoding for learning with dirty categorical variables",
-journal="Machine Learning",
-year="2018",
-month="Sep",
-day="01",
-volume="107",
-number="8",
-pages="1477--1494",
-abstract="For statistical learning, categorical variables in a table are usually considered as discrete entities and encoded separately to feature vectors, e.g., with one-hot encoding. ``Dirty'' non-curated data give rise to categorical variables with a very high cardinality but redundancy: several categories reflect the same entity. In databases, this issue is typically solved with a deduplication step. We show that a simple approach that exposes the redundancy to the learning algorithm brings significant gains. We study a generalization of one-hot encoding, similarity encoding, that builds feature vectors from similarities across categories. We perform a thorough empirical validation on non-curated tables, a problem seldom studied in machine learning. Results on seven real-world datasets show that similarity encoding brings significant gains in predictive performance in comparison with known encoding methods for categories or strings, notably one-hot encoding and bag of character n-grams. We draw practical recommendations for encoding dirty categories: 3-gram similarity appears to be a good choice to capture morphological resemblance. For very high-cardinalities, dimensionality reduction significantly reduces the computational cost with little loss in performance: random projections or choosing a subset of prototype categories still outperform classic encoding approaches.",
-issn="1573-0565",
-doi="10.1007/s10994-018-5724-2",
-url="https://doi.org/10.1007/s10994-018-5724-2"
-}
 @article{Chen2004,
 author = {Chen, Chao and Breiman, Leo},
 year = {2004},
@@ -63,6 +20,72 @@ month = {01},
 pages = {},
 title = {Using Random Forest to Learn Imbalanced Data},
 journal = {University of California, Berkeley}
+}
+@article{Davis2006,
+ author = {Davis, Jesse and Goadrich, Mark},
+ title = {The Relationship Between Precision-Recall and ROC Curves},
+ booktitle = {Proceedings of the 23rd International Conference on Machine Learning},
+ series = {ICML '06},
+ year = {2006},
+ isbn = {1-59593-383-2},
+ location = {Pittsburgh, Pennsylvania, USA},
+ pages = {233--240},
+ numpages = {8},
+ url = {http://doi.acm.org/10.1145/1143844.1143874},
+ doi = {10.1145/1143844.1143874},
+ acmid = {1143874},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+}
+@article{Theofilatos2017,
+title = "Incorporating real-time traffic and weather data to explore road accident likelihood and severity in urban arterials",
+journal = "Journal of Safety Research",
+volume = "61",
+pages = "9 - 21",
+year = "2017",
+issn = "0022-4375",
+doi = "https://doi.org/10.1016/j.jsr.2017.02.003",
+url = "http://www.sciencedirect.com/science/article/pii/S0022437517301378",
+author = "Athanasios Theofilatos",
+keywords = "Accident likelihood, Accident severity, Real-time data, Urban arterials",
+abstract = "Introduction
+The effective treatment of road accidents and thus the enhancement of road safety is a major concern to societies due to the losses in human lives and the economic and social costs. The investigation of road accident likelihood and severity by utilizing real-time traffic and weather data has recently received significant attention by researchers. However, collected data mainly stem from freeways and expressways. Consequently, the aim of the present paper is to add to the current knowledge by investigating accident likelihood and severity by exploiting real-time traffic and weather data collected from urban arterials in Athens, Greece.
+Method
+Random Forests (RF) are firstly applied for preliminary analysis purposes. More specifically, it is aimed to rank candidate variables according to their relevant importance and provide a first insight on the potential significant variables. Then, Bayesian logistic regression as well finite mixture and mixed effects logit models are applied to further explore factors associated with accident likelihood and severity respectively.
+Results
+Regarding accident likelihood, the Bayesian logistic regression showed that variations in traffic significantly influence accident occurrence. On the other hand, accident severity analysis revealed a generally mixed influence of traffic variations on accident severity, although international literature states that traffic variations increase severity. Lastly, weather parameters did not find to have a direct influence on accident likelihood or severity.
+Conclusions
+The study added to the current knowledge by incorporating real-time traffic and weather data from urban arterials to investigate accident occurrence and accident severity mechanisms.
+Practical application
+The identification of risk factors can lead to the development of effective traffic management strategies to reduce accident occurrence and severity of injuries in urban arterials."
+}
+@article{Abellan2013,
+title = "Analysis of traffic accident severity using Decision Rules via Decision Trees",
+journal = "Expert Systems with Applications",
+volume = "40",
+number = "15",
+pages = "6047 - 6054",
+year = "2013",
+issn = "0957-4174",
+doi = "https://doi.org/10.1016/j.eswa.2013.05.027",
+url = "http://www.sciencedirect.com/science/article/pii/S0957417413003138",
+author = "Joaquín Abellán and Griselda López and Juan de Oña",
+keywords = "Traffic accident, Severity, Road safety, Decision Trees, Decision Rules",
+abstract = "A Decision Tree (DT) is a potential method for studying traffic accident severity. One of its main advantages is that Decision Rules (DRs) can be extracted from its structure. And these DRs can be used to identify safety problems and establish certain measures of performance. However, when only one DT is used, rule extraction is limited to the structure of that DT and some important relationships between variables cannot be extracted. This paper presents a more effective method for extracting rules from DTs. The method’s effectiveness when applied to a particular traffic accident dataset is shown. Specifically, our study focuses on traffic accident data from rural roads in Granada (Spain) from 2003 to 2009 (both included). The results show that we can obtain more than 70 relevant rules from our data using the new method, whereas with only one DT we would have extracted only five relevant rules from the same dataset."
+}
+@article{Lin2015,
+title = "A novel variable selection method based on frequent pattern tree for real-time traffic accident risk prediction",
+journal = "Transportation Research Part C: Emerging Technologies",
+volume = "55",
+pages = "444 - 459",
+year = "2015",
+note = "Engineering and Applied Sciences Optimization (OPT-i) - Professor Matthew G. Karlaftis Memorial Issue",
+issn = "0968-090X",
+doi = "https://doi.org/10.1016/j.trc.2015.03.015",
+url = "http://www.sciencedirect.com/science/article/pii/S0968090X15000947",
+author = "Lei Lin and Qian Wang and Adel W. Sadek",
+keywords = "Frequent Pattern tree (FP tree), Fuzzy C-means clustering (FCM), Bayesian network, k Nearest Neighbor (-NN), Variable importance, Variable selection, Random forest, Real time, Relative Object Purity Ratio (ROPR), Traffic accident risk prediction",
+abstract = "With the availability of large volumes of real-time traffic flow data along with traffic accident information, there is a renewed interest in the development of models for the real-time prediction of traffic accident risk. One challenge, however, is that the available data are usually complex, noisy, and even misleading. This raises the question of how to select the most important explanatory variables to achieve an acceptable level of accuracy for real-time traffic accident risk prediction. To address this, the present paper proposes a novel Frequent Pattern tree (FP tree) based variable selection method. The method works by first identifying all the frequent patterns in the traffic accident dataset. Next, for each frequent pattern, we introduce a new metric, herein referred to as the Relative Object Purity Ratio (ROPR). The ROPR is then used to calculate the importance score of each explanatory variable which in turn can be used for ranking and selecting the variables that contribute most to explaining the accident patterns. To demonstrate the advantages of the proposed variable selection method, the study develops two traffic accident risk prediction models, based on accident data collected on interstate highway I-64 in Virginia, namely a k-nearest neighbor model and a Bayesian network. Prior to model development, two variable selection methods are utilized: (1) the FP tree based method proposed in this paper; and (2) the random forest method, a widely used variable selection method, which is used as the base case for comparison. The results show that the FP tree based accident risk prediction models perform better than the random forest based models, regardless of the type of prediction models (i.e. k-nearest neighbor or Bayesian network), the settings of their parameters, and the types of datasets used for model training and testing. The best model found is a FP tree based Bayesian network model that can predict 61.11% of accidents while having a false alarm rate of 38.16%. These results compare very favorably with other accident prediction models reported in the literature."
 }
 @article{Chang2005,
 title = "Data mining of tree-based models to analyze freeway accident frequency",
@@ -76,89 +99,19 @@ doi = "https://doi.org/10.1016/j.jsr.2005.06.013",
 url = "http://www.sciencedirect.com/science/article/pii/S0022437505000708",
 author = "Li-Yen Chang and Wen-Chieh Chen",
 keywords = "Accident frequency, Freeway, Data mining, Classification and regression trees (CART), Negative binomial regression",
+abstract = "Introduction
+Statistical models, such as Poisson or negative binomial regression models, have been employed to analyze vehicle accident frequency for many years. However, these models have their own model assumptions and pre-defined underlying relationship between dependent and independent variables. If these assumptions are violated, the model could lead to erroneous estimation of accident likelihood. Classification and Regression Tree (CART), one of the most widely applied data mining techniques, has been commonly employed in business administration, industry, and engineering. CART does not require any pre-defined underlying relationship between target (dependent) variable and predictors (independent variables) and has been shown to be a powerful tool, particularly for dealing with prediction and classification problems.
+Method
+This study collected the 2001–2002 accident data of National Freeway 1 in Taiwan. A CART model and a negative binomial regression model were developed to establish the empirical relationship between traffic accidents and highway geometric variables, traffic characteristics, and environmental factors.
+Results
+The CART findings indicated that the average daily traffic volume and precipitation variables were the key determinants for freeway accident frequencies. By comparing the prediction performance between the CART and the negative binomial regression models, this study demonstrates that CART is a good alternative method for analyzing freeway accident frequencies.
+Impact on industry
+By comparing the prediction performance between the CART and the negative binomial regression models, this study demonstrates that CART is a good alternative method for analyzing freeway accident frequencies."
 }
-@inproceedings{QChen2016,
-  title={Learning Deep Representation from Big and Heterogeneous Data for Traffic Accident Inference},
-  author={Quanjun Chen and Xuan Song and Harutoshi Yamada and Ryosuke Shibasaki},
-  booktitle={AAAI},
-  year={2016}
-}
-@inproceedings{Valizadeh2009,
-author = {Sima Valizadeh  and Behzad Moshiri  and Karim Salahshoor },
-title = {Leak Detection in Transportation Pipelines Using Feature Extraction and KNN Classification},
-booktitle = {Pipelines},
-doi = {10.1061/41069(360)53},
-year={2009}
-}
-@article{Christ2018,
-title = "Time Series FeatuRe Extraction on basis of Scalable Hypothesis tests (tsfresh – A Python package)",
-journal = "Neurocomputing",
-volume = "307",
-pages = "72 - 77",
-year = "2018",
-issn = "0925-2312",
-doi = "https://doi.org/10.1016/j.neucom.2018.03.067",
-url = "http://www.sciencedirect.com/science/article/pii/S0925231218304843",
-author = "Maximilian Christ and Nils Braun and Julius Neuffer and Andreas W. Kempa-Liehr",
-keywords = "Feature engineering, Time series, Feature extraction, Feature selection, Machine learning",
-}
-@article{Christ2016,
-  author    = {Maximilian Christ and
-               Andreas W. Kempa{-}Liehr and
-               Michael Feindt},
-  title     = {Distributed and parallel time series feature extraction for industrial
-               big data applications},
-  journal   = {CoRR},
-  volume    = {abs/1610.07717},
-  year      = {2016},
-  url       = {http://arxiv.org/abs/1610.07717},
-  archivePrefix = {arXiv},
-  eprint    = {1610.07717},
-  timestamp = {Mon, 13 Aug 2018 16:46:42 +0200},
-  biburl    = {https://dblp.org/rec/bib/journals/corr/ChristKF16},
-  bibsource = {dblp computer science bibliography, https://dblp.org}
-}
-@article{Branco2016,
- author = {Branco, Paula and Torgo, Lu\'{\i}s and Ribeiro, Rita P.},
- title = {A Survey of Predictive Modeling on Imbalanced Domains},
- journal = {ACM Comput. Surv.},
- issue_date = {November 2016},
- volume = {49},
- number = {2},
- month = aug,
- year = {2016},
- issn = {0360-0300},
- pages = {31:1--31:50},
- articleno = {31},
- numpages = {50},
- url = {http://doi.acm.org/10.1145/2907070},
- doi = {10.1145/2907070},
- acmid = {2907070},
- publisher = {ACM},
- address = {New York, NY, USA},
- keywords = {Imbalanced domains, classification, performance metrics, rare cases, regression},
-}
-@inproceedings{Chen2016,
- author = {Chen, Tianqi and Guestrin, Carlos},
- title = {XGBoost: A Scalable Tree Boosting System},
- booktitle = {Proceedings of the 22Nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
- series = {KDD '16},
- year = {2016},
- isbn = {978-1-4503-4232-2},
- location = {San Francisco, California, USA},
- pages = {785--794},
- numpages = {10},
- url = {http://doi.acm.org/10.1145/2939672.2939785},
- doi = {10.1145/2939672.2939785},
- acmid = {2939785},
- publisher = {ACM},
- address = {New York, NY, USA},
- keywords = {large-scale machine learning},
-}
-@inproceedings{Yuan2018,
+@article{Yuan2018,
  author = {Yuan, Zhuoning and Zhou, Xun and Yang, Tianbao},
  title = {Hetero-ConvLSTM: A Deep Learning Approach to Traffic Accident Prediction on Heterogeneous Spatio-Temporal Data},
- booktitle = {Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining},
+ booktitle = {Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery \&\#38; Data Mining},
  series = {KDD '18},
  year = {2018},
  isbn = {978-1-4503-5552-0},
@@ -172,48 +125,16 @@ keywords = "Feature engineering, Time series, Feature extraction, Feature select
  address = {New York, NY, USA},
  keywords = {convolutional lstm, deep learning, spatial heterogeneity, traffic accident prediction},
 }
-@incollection{Louppe2013,
-title = {Understanding variable importances in forests of randomized trees},
-author = {Louppe, Gilles and Wehenkel, Louis and Sutera, Antonio and Geurts, Pierre},
-booktitle = {Advances in Neural Information Processing Systems 26},
-editor = {C. J. C. Burges and L. Bottou and M. Welling and Z. Ghahramani and K. Q. Weinberger},
-pages = {431--439},
-year = {2013},
-publisher = {Curran Associates, Inc.},
-url = {http://papers.nips.cc/paper/4928-understanding-variable-importances-in-forests-of-randomized-trees.pdf}
-}
-@Article{White1994,
-author="White, Allan P.
-and Liu, Wei Zhong",
-title="Technical Note: Bias in Information-Based Measures in Decision Tree Induction",
-journal="Machine Learning",
-year="1994",
-month="Jun",
-day="01",
-volume="15",
-number="3",
-pages="321--329",
-abstract="A fresh look is taken at the problem of bias in information-based attribute selection measures, used in the induction of decision trees. The approach uses statistical simulation techniques to demonstrate that the usual measures such as information gain, gain ratio, and a new measure recently proposed by Lopez de Mantaras (1991) are all biased in favour of attributes with large numbers of values. It is concluded that approaches which utilise the chi-square distribution are preferable because they compensate automatically for differences between attributes in the number of levels they take.",
-issn="1573-0565",
-doi="10.1023/A:1022694010754",
-url="https://doi.org/10.1023/A:1022694010754"
-}
-@Article{Strobl2008,
-author="Strobl, Carolin
-and Boulesteix, Anne-Laure
-and Kneib, Thomas
-and Augustin, Thomas
-and Zeileis, Achim",
-title="Conditional variable importance for random forests",
-journal="BMC Bioinformatics",
-year="2008",
-month="Jul",
-day="11",
-volume="9",
-number="1",
-pages="307",
-abstract="Random forests are becoming increasingly popular in many scientific fields because they can cope with ``small n large p'' problems, complex interactions and even highly correlated predictor variables. Their variable importance measures have recently been suggested as screening tools for, e.g., gene expression studies. However, these variable importance measures show a bias towards correlated predictor variables.",
-issn="1471-2105",
-doi="10.1186/1471-2105-9-307",
-url="https://doi.org/10.1186/1471-2105-9-307"
+@inproceedings{Chen2016,
+ author = {Chen, Quanjun and Song, Xuan and Yamada, Harutoshi and Shibasaki, Ryosuke},
+ title = {Learning Deep Representation from Big and Heterogeneous Data for Traffic Accident Inference},
+ booktitle = {Proceedings of the Thirtieth AAAI Conference on Artificial Intelligence},
+ series = {AAAI'16},
+ year = {2016},
+ location = {Phoenix, Arizona},
+ pages = {338--344},
+ numpages = {7},
+ url = {http://dl.acm.org/citation.cfm?id=3015812.3015863},
+ acmid = {3015863},
+ publisher = {AAAI Press},
 }

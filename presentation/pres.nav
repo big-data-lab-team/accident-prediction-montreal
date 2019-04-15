@@ -67,8 +67,10 @@
 \headcommand {\sectionentry {7}{References}{24}{References}{0}}
 \headcommand {\slideentry {7}{0}{0}{24/24}{}{0}}
 \headcommand {\beamer@framepages {24}{24}}
-\headcommand {\beamer@partpages {1}{24}}
-\headcommand {\beamer@subsectionpages {22}{24}}
-\headcommand {\beamer@sectionpages {22}{24}}
-\headcommand {\beamer@documentpages {24}}
-\headcommand {\gdef \inserttotalframenumber {24}}
+\headcommand {\slideentry {7}{0}{0}{24/25}{}{0}}
+\headcommand {\beamer@framepages {24}{25}}
+\headcommand {\beamer@partpages {1}{25}}
+\headcommand {\beamer@subsectionpages {22}{25}}
+\headcommand {\beamer@sectionpages {22}{25}}
+\headcommand {\beamer@documentpages {25}}
+\headcommand {\gdef \inserttotalframenumber {25}}

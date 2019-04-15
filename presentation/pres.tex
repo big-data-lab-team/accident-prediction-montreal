@@ -211,8 +211,8 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 \begin{itemize}
 \item[] \textbf{Related work on accident prediction}:
   \begin{itemize}
-    \item Extensive use of decision trees in several form. (Athanasios Theofilatos, A. 2017, Joaquín Abellán, 2013, Lei Lin 2014, Li-Yen Chang 2005)
-    \item Recently, deep learning algorithms (LSTM and CNN architectures for example) (Zhuoning Yuan, 2018, Quanjun Chen 2016)
+    \item Extensive use of decision trees in several form. (\cite{Theofilatos2017}, \cite{Abellan2013}, \cite{Lin2015}, \cite{Chang2005})
+    \item Recently, deep learning algorithms (LSTM and CNN architectures for example) (\cite{Yuan2018}, \cite{Chen2016})
   \end{itemize}
 \item[] \textbf{Chosen algorithms}:
   \begin{itemize}
@@ -232,7 +232,7 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 	\frametitle{Generating the negative samples}
 	\begin{itemize}
     \item Every time an accident did not happen is considered a negative sample.
-		\item A sample from the cartesian product between all dates (between 01/01/2012 and 31/12/2017) and all roads.
+		\item We extracted a subsample from the cartesian product between all dates (between 01/01/2012 and 31/12/2017) and all roads.
 		\item Generation of 5 million negative samples for about 200 000 positive samples.
 	\end{itemize}
 \end{frame}
@@ -240,10 +240,10 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 \begin{frame}
 	\frametitle{Some feature engineering}
 	\begin{itemize}
-		\item Computing the distances between GPS coordinates (taking into account earth curvature)
-		\item Making the dates and times cyclic
-		\item Creating missing points on the roads
-    \item Interpolating weather statistics by averaging data from several stations
+		\item Computation of the distances between roads and accidents using their GPS coordinates (taking into account earth curvature)
+		\item Transformation of the dates and times into a cyclic format
+		\item Extrapolation of missing points on the roads (defined by a limited number of points in a KML format)
+    \item Interpolation of weather statistics at a given point by averaging data collected from several stations
     \item etc...
 	\end{itemize}
 \end{frame}
@@ -259,8 +259,8 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
     \begin{equation*}
 			TPR = \frac{TP}{TP+FN},  Precision = \frac{TP}{TP+FP}
 		\end{equation*}
-    \item Data imbalance imply decrease of TP and increase of FN
-    \item Therefore, area under PR exhibits larger difference than are under ROC
+    \item Data imbalance imply decrease of TP and increase of FN (none of them appears in the FPR)
+    \item Therefore, area under PR exhibits larger differences than area under ROC (\cite{Davis2006})
 	\end{itemize}
 \end{frame}
 
@@ -276,11 +276,12 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
     \begin{itemize}
     	\item Random Forests (\cite{Breiman2001}) are combinations of fully-grown decision trees.
     	\item Each tree is trained on a random sample of the data and a random sample of the features.
+      \item The final prediction is given by averaging the votes of the trees.
     \end{itemize}
 
   \item[] \textbf{Weighted Random Forests (WRF)}:
     \begin{itemize}
-      \item A solution to imbalance.
+      \item A solution to imbalance (\cite{Chen2004}).
       \item Add weights to the classes when growing the tree (in the Gini coefficient).
       \item Add weights to the classes at the voting time.
     \end{itemize}
@@ -295,18 +296,18 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 \begin{itemize}
   \item[] \textbf{Balanced Random Forests (BRF)}:
     \begin{itemize}
-      \item Another solution to imbalance.
-      \item Combine undersampling and ensemble method versus loss of information.
-      \item For each tree : Randomly draw sample of same size from majority (with replacement) and minority class.
+      \item Another solution to imbalance (\cite{Chen2004}).
+      \item Combine undersampling and ensemble method to migitate the loss of information.
+      \item For each tree : Randomly draw samples of same size from majority (with replacement) and minority class.
       \item The rest of the algorithm is identical to Random Forests
     \end{itemize}
 
   \item[] \textbf{BRF versus WRF}:
     \begin{itemize}
       \item No clear winner ! But...
-      \item WRF - More vulnerable to noise on minority class
-      \item BRF - More computationally efficient because use less data (subsampling)
-      \item BRF - Easier to implement
+      \item WRF - More vulnerable to noise on minority class (\cite{Chen2004})
+      \item BRF - More computationally efficient because use less data (subsampling) (\cite{Chen2004})
+      \item BRF - Easier to implement in Spark (see next slide)
     \end{itemize}
 
 \end{itemize}
@@ -320,8 +321,7 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
     \begin{itemize}
     	\item To manage the subsampling of the dataset, Spark's scala implementation use the Poisson distribution.
       \item The Poisson distribution is used to compute the probability of an event to occur at a given time.
-    	\item To know how many times a given sample will be in the subsample of a given tree (can be 0 times), we use "distribution sampling" of 1 element.
-      \item (Distribution sampling: Get a random sample following a given distribution)
+    	\item To know how many times a given sample will be in the subsample of a given tree (can be 0 times), we use "distribution sampling" of 1 element. (Distribution sampling: Get a random sample following a given distribution)
     \end{itemize}
   \item[] \textbf{Our modifications}:
     \begin{itemize}
@@ -339,7 +339,7 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 \frametitle{Experimenting with our BRF implementation}
 \begin{itemize}
   \item Area Under PR : 99,3\% for WRF VS 99,7\% for BRF
-  \item F1 score : 99\% for WRF VS 98\% for BRF (which proves that F1 score can be misleading)
+  \item F1 score : 99\% for WRF VS 98\% for BRF (which proves that F1 score can be misleading in the context of class imbalance)
 
 \end{itemize}
 
@@ -378,7 +378,7 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
         \item We found ourselves writing a lot more code using Dask than using Spark
         \item We found Spark easier to use for processing the dataset in batch
         \item Spark's map-reduce and shuffling operations are very handy
-        \item Spark ML pipelines allow to create pipelines of preprocessing easily
+        \item Spark ML pipelines allow to create processing pipelines easily
       \end{itemize}
 	\end{itemize}
 \end{frame}
@@ -400,7 +400,7 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 	\frametitle{Key features identified}
 	\begin{itemize}
 		\item The most important features seem to be the time and location of the vehicle, followed by some road's features like the type of road (highway for example) and the street length.
-    \item Finally, comes wome weather features like the visibility, the wind and the humidity.
+    \item Finally, come some weather features like the visibility, the wind and the humidity.
 	\end{itemize}
 \centering
 \includegraphics[height=4cm, keepaspectratio]{Figures/features.png}
@@ -415,7 +415,8 @@ We chose to focus on tree-based algorithms because it has proven its efficiency 
 	\begin{itemize}
     \item We found some key features that can explain the occurence of accidents.
     \item We identified some issues related to class imbalance and big data analytics.
-    \item Future work would include tuning the XGBoost classifier, testing lightGBM classifier, assing some datasets like a road works dataset.
+    \item We implemented BRF in Spark.
+    \item Future work would include tuning the XGBoost classifier, testing lightGBM classifier, adding some datasets like a road works dataset.
     \item The code can be found on Github at https://github.com/GTimothee/accident-prediction-montreal
 	\end{itemize}
 \end{frame}
