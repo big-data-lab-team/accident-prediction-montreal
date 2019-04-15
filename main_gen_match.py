@@ -46,6 +46,12 @@ def generate_match_accident_road_of_one_month(year, month):
     match_accident_road.write.parquet(filepath)
     spark.stop()  # Force garbage collection and empty temp dir
 
+
+# Make sure to generate accidents DF
+spark = init_spark()
+get_accident_df(spark)
+spark.stop()
+
 for year in range(2012, 2018):
     for month in range(1, 13):
         generate_match_accident_road_of_one_month(year, month)
