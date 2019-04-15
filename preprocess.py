@@ -31,14 +31,14 @@ def preprocess_accidents(accidents_df):
             .withColumn('date', to_date(col('DT_ACCDN'), format='yyyy/MM/dd'))
             .withColumn("hour", split(col('HEURE_ACCDN'), ':')[0].cast("int"))
             .drop('DT_ACCDN', 'HEURE_ACCDN')
-            .withColumnRenamed('LOC_LAT', 'loc_lat')
-            .withColumnRenamed('LOC_LONG', 'loc_long')
+            .withColumn('loc_lat', col('LOC_LAT').astype('double'))
+            .withColumn('loc_long', col('LOC_LONG').astype('double'))
             .withColumnRenamed('ACCIDENT_ID', 'accident_id')
             .dropna())
 
 
 def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
-    cache_path = workdir + 'data/match_accident_road.parquet'
+    cache_path = workdir + 'data/matches_accident-road.parquet'
     if isdir(cache_path) and use_cache:
         print('Reading accident-road matches from cache...')
         return spark.read.parquet(cache_path)
@@ -292,8 +292,8 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
     if isdir(cache_path) and use_cache:
         return spark.read.parquet(cache_path)
 
-    road_df = road_df or get_road_df(spark, not use_cache)
-    accident_df = get_accident_df(spark, not use_cache)
+    road_df = road_df or get_road_df(spark, use_cache)
+    accident_df = get_accident_df(spark, use_cache)
     accident_df = preprocess_accidents(accident_df)
 
     if year_limit is not None:
@@ -444,4 +444,4 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'street_id',
                   'date', 'hour', 'features', 'label'))
 
-    return df
+    return df.withColumn('id', monotonically_increasing_id())

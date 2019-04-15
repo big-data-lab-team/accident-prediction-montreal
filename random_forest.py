@@ -15,27 +15,27 @@ def random_forest_tuning(train_samples):
     rf = RandomForestClassifier(labelCol="label",
                                 featuresCol="features",
                                 cacheNodeIds=True)
-    ru = RandomUnderSampler()
+    ru = RandomUnderSampler().setIndexCol('id')
     pipeline = Pipeline().setStages([ru, rf])
     paramGrid = \
         (ParamGridBuilder()
-         .addGrid(rf.numTrees, [100, 110, 115, 120, 130])
+         .addGrid(rf.numTrees, [50, 75, 100])
          .addGrid(rf.featureSubsetStrategy, ['sqrt'])
-         .addGrid(rf.impurity, ['entropy'])
+         .addGrid(rf.impurity, ['gini', 'entropy'])
          .addGrid(rf.maxDepth, [30])
          .addGrid(rf.minInstancesPerNode, [1])
-         .addGrid(rf.subsamplingRate, [0.8])
-         .addGrid(ru.targetImbalanceRatio, [1.0])
+         .addGrid(rf.subsamplingRate, [0.6, 0.5, 0.4])
+         .addGrid(ru.targetImbalanceRatio, [1.0, 1.5, 2.0])
          .build())
     pr_evaluator = \
         BinaryClassificationEvaluator(labelCol="label",
                                       rawPredictionCol="rawPrediction",
                                       metricName="areaUnderPR")
     tvs = TrainValidationSplit(estimator=pipeline,
-                               estimatorParamMaps=paramGrid,
-                               evaluator=pr_evaluator,
-                               trainRatio=0.7,
-                               collectSubModels=True)
+                         estimatorParamMaps=paramGrid,
+                         evaluator=pr_evaluator,
+                         trainRatio=0.7,
+                         collectSubModels=True)
 
     model = tvs.fit(train_samples)
 

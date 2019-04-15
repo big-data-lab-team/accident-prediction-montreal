@@ -7,5 +7,5 @@ from preprocess import preprocess_accidents
 
 spark = init_spark()
 
-accident_df = preprocess_accidents(get_accident_df(spark, False))
+accident_df = preprocess_accidents(get_accident_df(spark))
 df = get_weather_df(spark, accident_df)

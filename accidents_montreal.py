@@ -1,4 +1,4 @@
-from urllib.request import urlretrieve
+from urllib.request import urlretrieve, urlopen
 from urllib.error import URLError, HTTPError
 from os.path import isfile
 from zipfile import ZipFile
@@ -15,7 +15,7 @@ from workdir import workdir
 
 def get_accident_df(spark, use_cache=True):
     fetch_accidents_montreal()
-    return extract_accidents_montreal_df(spark, use_cache)
+    return read_accidents_montreal_df(spark, use_cache)
 
 
 def fetch_accidents_montreal():
@@ -33,7 +33,9 @@ def fetch_accidents_montreal():
                         'documentation.pdf'
     print('Fetching montreal accidents dataset...')
     try:
-        urlretrieve(url, workdir + 'data/accidents-montreal.zip')
+        (ZipFile(BytesIO(urlopen(url).read()))
+         .extract('Accidents_2012_2017/Accidents_2012_2017.csv',
+                  path=workdir + 'data'))
         urlretrieve(url_variable_desc,
                     workdir + 'data/accident-montreal-documentation.pdf')
         print('Fetching montreal accidents dataset: done')
@@ -42,32 +44,20 @@ def fetch_accidents_montreal():
         print('Unable to find montreal accidents dataset.')
 
 
-def extract_accidents_montreal_df(spark, use_cache=True):
-    cache = workdir + 'data/accidents.parquet'
+def read_accidents_montreal_df(spark, use_cache=True):
+    cache = workdir + 'data/accidents_montreal.parquet'
     if (os.path.isdir(cache) or os.path.isfile(cache)) and use_cache:
         print('Skip extraction of accidents montreal dataframe:'
               ' already done, reading from file')
         return spark.read.parquet(cache)
 
-    # We read directly from ZIP to avoid disk IO
-    file = (BytesIO(ZipFile(workdir + 'data/accidents-montreal.zip', 'r')
-            .read('Accidents_2012_2017/Accidents_2012_2017.csv')))
-    pddf = pd.read_csv(file)
-
-    # Create Spark schema, necessary to convert Pandas DF to Spark DF since
-    # dataframe contains different data types
-    cols = pddf.columns.tolist()
-    types = (pddf.dtypes
-             .replace('object', StringType())
-             .replace('int64', IntegerType())
-             .replace('float64', FloatType())
-             .replace('string', StringType())
-             .tolist())
-    fields = list(
-            map(lambda u: StructField(u[0], u[1], True), zip(cols, types)))
-    sch = StructType(fields)
-    df = (spark.createDataFrame(data=pddf, schema=sch).repartition(200)
+    df = (spark
+          .read
+          .csv(workdir + 'data/Accidents_2012_2017/Accidents_2012_2017.csv',
+               header=True)
+          .repartition(200)
           .withColumn('ACCIDENT_ID', monotonically_increasing_id()))
+
     if use_cache:
         df.write.parquet(cache)
     return df
