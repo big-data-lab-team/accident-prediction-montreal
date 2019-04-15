@@ -1,0 +1,7 @@
+\babel@toc {english}{}
+\beamer@sectionintoc {1}{Introduction}{3}{0}{1}
+\beamer@sectionintoc {2}{Methods}{7}{0}{2}
+\beamer@sectionintoc {3}{Balanced Random Forests}{11}{0}{3}
+\beamer@sectionintoc {4}{Big Data related issues}{16}{0}{4}
+\beamer@sectionintoc {5}{Results}{19}{0}{5}
+\beamer@sectionintoc {6}{Conclusion}{22}{0}{6}
