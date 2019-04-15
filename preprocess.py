@@ -444,4 +444,4 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'street_id',
                   'date', 'hour', 'features', 'label'))
 
-    return df
+    return df.withColumn('id', monotonically_increasing_id())

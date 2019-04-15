@@ -1,6 +1,7 @@
 from pyspark.ml.param.shared import Param, Params, HasSeed, HasLabelCol
-from pyspark.ml import Transformer
-from pyspark.sql.functions import col
+from pyspark.ml import Transformer, Estimator
+from pyspark.sql.functions import col, lit, isnull
+from pyspark.ml.param import TypeConverters
 
 
 class HasTargetImbalanceRatio(Params):
@@ -26,13 +27,52 @@ class HasTargetImbalanceRatio(Params):
         """
         return self._set(targetImbalanceRatio=value)
 
+class HasIndexCol(Params):
+    """
+    Mixin for param indexCol: index column name.
+    """
 
-class RandomUnderSampler(Transformer, HasTargetImbalanceRatio, HasSeed,
-                         HasLabelCol):
-    def _transform(self, dataset):
+    indexCol = Param(Params._dummy(), "indexCol", "index column name.", typeConverter=TypeConverters.toString)
+
+    def __init__(self):
+        super(HasIndexCol, self).__init__()
+        self._setDefault(indexCol='index')
+
+    def setIndexCol(self, value):
+        """
+        Sets the value of :py:attr:`indexCol`.
+        """
+        return self._set(indexCol=value)
+
+    def getIndexCol(self):
+        """
+        Gets the value of indexCol or its default value.
+        """
+        return self.getOrDefault(self.indexCol)
+
+
+class RandomUnderSampler(Estimator, HasTargetImbalanceRatio, HasSeed,
+                         HasLabelCol, HasIndexCol):
+    def _fit(self, dataset):
         neg_samples = dataset.filter(col(self.getLabelCol()) == 0.0)
         pos_samples = dataset.filter(col(self.getLabelCol()) == 1.0)
         current_ratio = neg_samples.count()/pos_samples.count()
         sampling = self.getTargetImbalanceRatio()/current_ratio
-        neg_samples = neg_samples.sample(sampling, seed=self.getSeed())
-        return neg_samples.union(pos_samples)
+        indexes_to_remove = neg_samples.select(self.getIndexCol()).sample(1-sampling)
+
+        return RandomUnderSamplerModel(indexes_to_remove, self.getSeed())
+
+class RandomUnderSamplerModel(Transformer):
+    def __init__(self, indexesToRemove, seed):
+        super(RandomUnderSamplerModel, self).__init__()
+        self.seed = seed
+        self.indexesToRemove = indexesToRemove
+
+    def _transform(self, dataset):
+        index_col = self.indexesToRemove.columns[0]
+        return (dataset
+                .join(self.indexesToRemove.withColumn('exists', lit(1.0)),
+                      index_col,
+                      'left_outer')
+                .filter(isnull('exists'))
+                .drop('exists'))
