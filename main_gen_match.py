@@ -17,7 +17,7 @@ from accidents_montreal import get_accident_df
 
 
 def generate_match_accident_road_of_one_month(year, month):
-    filepath = workdir + f'data/matches_accident_road_{year}-{month}.parquet'
+    filepath = workdir + f'data/match_accident_road_{year}-{month}.parquet'
     if isdir(filepath):  # Skip if already done
         return
     print(f'Generating {year}-{month}')
@@ -57,12 +57,12 @@ def match_accident_road_samples_reader():
     for year in range(2012, 2018):
         for month in range(1, 13):
             filepath = workdir \
-                + f'data/matches_accident_road_{year}-{month}' \
+                + f'data/match_accident_road_{year}-{month}' \
                 + '.parquet'
             yield spark.read.parquet(filepath)
 
 
 full_matching_accident_road = reduce(DataFrame.union,
                                      match_accident_road_samples_reader())
-filepath = workdir + 'data/matches_accident_road.parquet'
+filepath = workdir + 'data/match_accident_road.parquet'
 full_matching_accident_road.write.parquet(filepath)

@@ -38,7 +38,7 @@ def preprocess_accidents(accidents_df):
 
 
 def match_accidents_with_roads(spark, road_df, accident_df, use_cache=True):
-    cache_path = workdir + 'data/matches_accident_road.parquet'
+    cache_path = workdir + 'data/match_accident_road.parquet'
     if isdir(cache_path) and use_cache:
         print('Reading accident-road matches from cache...')
         return spark.read.parquet(cache_path)

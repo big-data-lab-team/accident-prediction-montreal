@@ -73,8 +73,8 @@ def get_road_features_df(spark, road_df=None, use_cache=True):
 
 
 def fetch_road_network():
-    if not os.path.isdir('data'):
-        os.mkdir('data')
+    if not os.path.isdir(workdir + 'data'):
+        os.mkdir(workdir + 'data')
     if os.path.isfile(workdir + 'data/road-network.lock'):
         print('Skip fetching road network: already downloaded')
         return
