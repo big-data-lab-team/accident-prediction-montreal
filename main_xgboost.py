@@ -47,7 +47,7 @@ def grid_search(spark):
     model = pipeline.fit(trainDF)
     paramGrid = (ParamGridBuilder().addGrid(xgboost.max_depth, [x for x in range(3, 20, 6)])
                                    .addGrid(xgboost.eta, [x for x in np.linspace(0.2, 0.6, 4)])
-                                   .addGrid(xgboost.scale_pos_weight, [x for x in np.linspace(0.03, 1.0, 12)])
+                                   .addGrid(xgboost.scale_pos_weight, [x for x in np.linspace(0.03, 1.0, 3)])
                                    .build())
     evaluator = BinaryClassificationEvaluator(labelCol="label",
                                               rawPredictionCol="probabilities",
@@ -66,9 +66,8 @@ def grid_search(spark):
                         .asInstanceOf[XGBoostClassificationModel])
 
     with open(workdir + 'data/xgboost_tuning_results_1.txt', 'w') as file:
-        for models, result in zip(model.subModels, model.avgMetrics):
+        for model, result in zip(model.subModels[0], model.avgMetrics):
             file.write('==================================\n')
-            model = models[0]
             for stage in model.stages:
                 params = stage.extractParamMap()
                 for k in params:
