@@ -8,6 +8,8 @@ from pyspark.sql.types import StructField, FloatType, StructType, \
                               IntegerType, ArrayType, DateType
 from requests import get
 import pandas as pd
+import numpy as np
+import re
 from utils import get_with_retry as get
 from workdir import workdir
 
@@ -19,7 +21,8 @@ COLUMNS_USED = ['Dew Point Temp (°C)',
                 'Stn Press (kPa)',
                 'Hmdx',
                 'Wind Chill',
-                'Temp (°C)']
+                'Temp (°C)',
+                'Weather']
 
 
 def get_weather_df(spark, accident_df):
@@ -96,6 +99,15 @@ def get_station_weather_month(station_id, year, month):
            f'&Month={month}&Day=14&'
            f'timeframe=1&submit=Download+Data')
     df = get_pandas_dataframe(url)[['Day', 'Time']+COLUMNS_USED]
+
+    # When temperature is not available, it means no weather data is
+    # available at all, so it should not be considered as null risky_weater
+    df['risky_weather'] = np.nan
+    df.loc[df['Temp (°C)'].notna(), 'risky_weather'] = \
+        df['Weather'].astype(str).str.contains('snow|ice|freezing',
+                                   regex=True,
+                                   flags=re.IGNORECASE)
+
     return [(
         int(r['Day']),
         int(r['Time'].split(':')[0]),
@@ -107,7 +119,8 @@ def get_station_weather_month(station_id, year, month):
         float(r['Stn Press (kPa)']),
         float(r['Hmdx']),
         float(r['Wind Chill']),
-        float(r['Temp (°C)'])
+        float(r['Temp (°C)']),
+        float(r['risky_weather']) if not np.isnan(r['risky_weather']) else None
     ) for i, r in df.iterrows()]
 
 
@@ -132,7 +145,8 @@ def get_weather_station_weather_df(spark, stations_id):
             StructField('stn_press', FloatType()),
             StructField('hmdx', FloatType()),
             StructField('wind_chill', FloatType()),
-            StructField('temp', FloatType())
+            StructField('temp', FloatType()),
+            StructField('risky_weather', FloatType())
         ])))
 
     month_per_year_df = spark.createDataFrame(zip(range(1, 13),), ['month'])
@@ -147,6 +161,7 @@ def get_weather_station_weather_df(spark, stations_id):
     create_date_udf = udf(create_date, DateType())
 
     df = (stations_months_df
+          .repartition(200, 'year', 'month')
           .withColumn('weather', get_station_weather_month_udf('station_id',
                                                                'year',
                                                                'month'))
@@ -162,7 +177,8 @@ def get_weather_station_weather_df(spark, stations_id):
                   c['stn_press'].alias('stn_press'),
                   c['hmdx'].alias('hmdx'),
                   c['wind_chill'].alias('wind_chill'),
-                  c['temp'].alias('temp')))
+                  c['temp'].alias('temp'),
+                  c['risky_weather'].alias('risky_weather')))
 
     df.write.parquet(cache_file)
 
