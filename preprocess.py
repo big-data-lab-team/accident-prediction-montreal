@@ -390,14 +390,15 @@ features_col = ['hour_cos',
                 'street_level_indexed',
                 'street_length',
                 'street_type_indexed',
-                'wind_dir',
+                'accident_count',
+                # 'wind_dir',
                 'rel_hum',
-                'wind_spd',
-                'dew_point_temp',
+                # 'wind_spd',
+                # 'dew_point_temp', corelated with rel_hum and less important
                 'visibility',
                 'stn_press',
-                'wind_chill',
-                'hmdx',
+                # 'wind_chill', mostly nans
+                # 'hmdx', mostly nans
                 'temp',
                 'risky_weather',
                 'dayofyear_cos',
@@ -440,10 +441,10 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'street_id',
                   'date', 'hour', 'features', 'label'))
 
-    return df.withColumn('id', monotonically_increasing_id())
+    return street_lvl_index, street_typ_index, df.withColumn('id', monotonically_increasing_id())
 
 
-def index_street_categories(spark, pos_samples, df, col_name): 
+def index_street_categories(spark, pos_samples, df, col_name):
     road = get_road_features_df(spark)
     street_cat_distrib = (road
                            .select(col_name)

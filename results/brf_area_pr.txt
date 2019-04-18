@@ -1,0 +1,8 @@
+Test set:
+  Area under PR: 0.7186
+  F1 score: 0.8769
+  Area under ROC: 0.9391
+Train set:
+  Area under PR: 0.7930
+  F1 score: 0.8863
+  Area under ROC: 0.9704
