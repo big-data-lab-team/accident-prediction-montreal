@@ -325,7 +325,7 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
 
 def get_weather_information(samples, weather_df):
     '''Add weather coloumn to samples dataframe. '''
-    p = 1
+    p = 2
     weather_cols = list(set(weather_df.columns)
                         - set(['station_id', 'hour', 'station_lat',
                                'station_long', 'date']))
