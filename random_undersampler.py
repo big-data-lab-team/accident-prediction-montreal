@@ -59,7 +59,7 @@ class RandomUnderSampler(Estimator, HasTargetImbalanceRatio, HasSeed,
         current_ratio = neg_samples.count()/pos_samples.count()
         sampling = self.getTargetImbalanceRatio()/current_ratio
         indexes_to_remove = (neg_samples.select(self.getIndexCol())
-                             .sample(1-sampling, seed=self.getSeed())
+                             .sample(1-sampling, seed=self.getSeed()))
 
         return (RandomUnderSamplerModel(indexes_to_remove, self.getSeed())
                 .setTargetImbalanceRatio(self.getTargetImbalanceRatio()))
