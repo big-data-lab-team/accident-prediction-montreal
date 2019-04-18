@@ -99,4 +99,5 @@ def get_feature_importances(model):
     feature_names = features_col[:-1] + dayofweek_features
     feature_importances.index = feature_names
     feature_importances.columns = ["Feature importances"]
+    feature_importances.sort_values(['Feature importances'], ascending=False)
     return feature_importances
