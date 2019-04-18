@@ -58,8 +58,12 @@ class RandomUnderSampler(Estimator, HasTargetImbalanceRatio, HasSeed,
         pos_samples = dataset.filter(col(self.getLabelCol()) == 1.0)
         current_ratio = neg_samples.count()/pos_samples.count()
         sampling = self.getTargetImbalanceRatio()/current_ratio
-        indexes_to_remove = (neg_samples.select(self.getIndexCol())
-                             .sample(1-sampling, seed=self.getSeed()))
+        if sampling > 1.0:
+            # Nothing to do imbalance ratio already lower than target
+            indexes_to_remove = None
+        else:
+            indexes_to_remove = (neg_samples.select(self.getIndexCol())
+                                 .sample(1-sampling, seed=self.getSeed()))
 
         return (RandomUnderSamplerModel(indexes_to_remove, self.getSeed())
                 .setTargetImbalanceRatio(self.getTargetImbalanceRatio()))
@@ -71,6 +75,8 @@ class RandomUnderSamplerModel(Transformer, HasTargetImbalanceRatio):
         self.indexesToRemove = indexesToRemove
 
     def _transform(self, dataset):
+        if self.indexesToRemove is None:
+            return dataset
         index_col = self.indexesToRemove.columns[0]
         return (dataset
                 .join(self.indexesToRemove.withColumn('exists', lit(1.0)),
