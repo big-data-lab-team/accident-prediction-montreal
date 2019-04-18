@@ -6,8 +6,8 @@ from functools import reduce
 from pyspark.sql import Window, DataFrame
 from pyspark.sql.functions import row_number, col, rank, avg, split, to_date, \
                                   monotonically_increasing_id, when, isnan, \
-                                  year, cos, sin, month, dayofmonth, lit, \
-                                  dayofweek, isnull
+                                  year, cos, sin, dayofyear, dayofmonth, \
+                                  lit, dayofweek, isnull
 from pyspark.sql.types import BooleanType
 from pyspark.ml.feature import OneHotEncoder
 from pyspark.ml.feature import StringIndexer
@@ -372,19 +372,19 @@ def add_cyclic_feature(df, column, col_name, period):
 
 
 def add_date_features(samples):
-    samples = add_cyclic_feature(samples, month('date'), 'month', 12)
-    samples = add_cyclic_feature(samples, dayofmonth('date'), 'day', 31)
+    samples = add_cyclic_feature(samples, dayofmonth('date'), 'dayofmonth', 31)
+    samples = add_cyclic_feature(samples, dayofyear('date'), 'dayofyear', 366)
 
-    samples = samples.withColumn('dayofweek', dayofweek('date') - 1)
-    encoder = OneHotEncoder(inputCols=['dayofweek'],
-                            outputCols=["dayofweek_onehot"])
-    encoder_model = encoder.fit(samples)
-    samples = encoder_model.transform(samples).drop('dayofweek')
+    samples = samples.withColumn('dayofweek', dayofweek('date'))
+    samples = samples.withColumn('hour2', col('hour'))
+    samples = add_cyclic_feature(samples, col('hour'), 'hour', 24)
+    samples = samples.withColumnRenamed('hour2', 'hour')
 
     return samples
 
 
-features_col = ['hour',
+features_col = ['hour_cos',
+                'hour_sin',
                 'loc_long',
                 'loc_lat',
                 'street_level_indexed',
@@ -399,11 +399,12 @@ features_col = ['hour',
                 'wind_chill',
                 'hmdx',
                 'temp',
-                'month_cos',
-                'month_sin',
-                'day_cos',
-                'day_sin',
-                'dayofweek_onehot']
+                'dayofyear_cos',
+                'dayofyear_sin',
+                # 'dayofweek',
+                # 'dayofmonth_cos',
+                # 'dayofmonth_sin',
+                ]
 
 
 def remove_positive_samples_from_negative_samples(neg_samples, pos_samples):
