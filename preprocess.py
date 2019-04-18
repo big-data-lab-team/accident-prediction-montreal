@@ -390,6 +390,7 @@ features_col = ['hour_cos',
                 'street_level_indexed',
                 'street_length',
                 'street_type_indexed',
+                'accident_count',
                 # 'wind_dir',
                 'rel_hum',
                 # 'wind_spd',
@@ -440,7 +441,7 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'street_id',
                   'date', 'hour', 'features', 'label'))
 
-    return df.withColumn('id', monotonically_increasing_id())
+    return street_lvl_index, street_typ_index, df.withColumn('id', monotonically_increasing_id())
 
 
 def index_street_categories(spark, pos_samples, df, col_name):
