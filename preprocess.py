@@ -428,14 +428,8 @@ def get_dataset_df(spark, pos_samples, neg_samples):
 
     pos_samples = pos_samples.select(*neg_samples.columns)
     df = pos_samples.union(neg_samples)
-    street_level_indexer = StringIndexer(inputCol="street_level",
-                                         outputCol="street_level_indexed",
-                                         stringOrderType="alphabetAsc")
-    street_type_indexer = StringIndexer(inputCol="street_type",
-                                        outputCol="street_type_indexed",
-                                        handleInvalid='keep')
-    df = street_level_indexer.fit(df).transform(df).drop('street_level')
-    df = street_type_indexer.fit(df).transform(df).drop('street_type')
+    street_lvl_index, df = index_street_categories(spark, pos_samples, df, 'street_level')
+    street_typ_index, df = index_street_categories(spark, pos_samples, df, 'street_type')
 
     assembler = VectorAssembler(outputCol="features",
                                 inputCols=features_col,
@@ -447,3 +441,29 @@ def get_dataset_df(spark, pos_samples, neg_samples):
                   'date', 'hour', 'features', 'label'))
 
     return df.withColumn('id', monotonically_increasing_id())
+
+
+def index_street_categories(spark, pos_samples, df, col_name): 
+    road = get_road_features_df(spark)
+    street_cat_distrib = (road
+                           .select(col_name)
+                           .na.fill("unknown")
+                           .groupBy(col_name).count()
+                           .withColumn('p', col('count') / lit(road.count()))
+                           .orderBy(col('p').desc())
+                           .drop('count'))
+    street_cat_indexes = \
+        (pos_samples
+         .select(col_name)
+         .na.fill("unknown")
+         .groupBy(col_name).count()
+         .withColumn('p_pos', col('count') / lit(pos_samples.count()))
+         .drop('count')
+         .join(street_cat_distrib, col_name)
+         .na.fill(0, ['p_pos'])
+         .select(col_name, (col('p_pos') - col('p')).alias('risk'))
+         .withColumn(col_name + '_indexed',
+                     row_number().over(Window.orderBy(col('risk').desc())))
+        . drop('risk'))
+
+    return street_cat_indexes, df.join(street_cat_indexes, col_name).drop(col_name)
