@@ -4,6 +4,7 @@ from pyspark import SparkConf
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from workdir import workdir
 
 
 def raise_parquet_not_del_error(cache):
@@ -26,12 +27,14 @@ def init_spark():
                     "org.apache.spark.serializer.KryoSerializer")
             # In local mode there is only one executor: the driver
             # .config("spark.executor.memory", "1536m")
-            .config("spark.driver.memory", "3g")
+            #.config("spark.driver.memory", "3g")
             # Prevent time out errors see: https://github.com/rjagerman/mammoth
             # /wiki/ExecutorLost-Failure:-Heartbeat-timeouts
             #.config("spark.cleaner.periodicGC.interval", "5min")
             #.config("spark.network.timeout", "300s")
-            .config("spark.driver.extraClassPath", "data/xgboost4j-spark-0.72.jar:data/xgboost4j-0.72.jar")
+            .config("spark.driver.extraClassPath",
+                    f"{workdir}data/xgboost4j-spark-0.72.jar"
+                    + f":{workdir}data/xgboost4j-0.72.jar")
             .getOrCreate())
 
     print('Spark Session created')
