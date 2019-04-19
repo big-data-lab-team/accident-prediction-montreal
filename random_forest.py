@@ -1,7 +1,9 @@
 from pyspark.ml.classification import RandomForestClassifier
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
-from pyspark.ml.tuning import TrainValidationSplit, ParamGridBuilder
+from pyspark.ml.tuning import TrainValidationSplit, \
+                              ParamGridBuilder, \
+                              CrossValidator
 from pyspark.ml import Pipeline
 from pyspark.sql.types import DoubleType
 from pyspark.sql.functions import udf, col
@@ -9,6 +11,7 @@ import pandas as pd
 import numpy as np
 from preprocess import features_col
 from random_undersampler import RandomUnderSampler 
+from class_weighter import ClassWeighter
 
 
 def random_forest_tuning(train_samples):
@@ -22,9 +25,9 @@ def random_forest_tuning(train_samples):
          .addGrid(rf.numTrees, [50, 75, 100])
          .addGrid(rf.featureSubsetStrategy, ['sqrt'])
          .addGrid(rf.impurity, ['gini', 'entropy'])
-         .addGrid(rf.maxDepth, [30])
+         .addGrid(rf.maxDepth, [5, 15, 30])
          .addGrid(rf.minInstancesPerNode, [1])
-         .addGrid(rf.subsamplingRate, [0.6, 0.5, 0.4])
+         .addGrid(rf.subsamplingRate, [1.0, 0.6, 0.4])
          .addGrid(ru.targetImbalanceRatio, [1.0, 1.5, 2.0])
          .build())
     pr_evaluator = \
@@ -34,12 +37,47 @@ def random_forest_tuning(train_samples):
     tvs = TrainValidationSplit(estimator=pipeline,
                          estimatorParamMaps=paramGrid,
                          evaluator=pr_evaluator,
-                         trainRatio=0.7,
+                         trainRatio=0.8,
                          collectSubModels=True)
 
     model = tvs.fit(train_samples)
 
     return model
+
+
+def balanced_random_forest_tuning(train_samples):
+    rf = RandomForestClassifier(labelCol="label",
+                                featuresCol="features",
+                                cacheNodeIds=True,
+                                weightCol="weight")
+    ru = RandomUnderSampler().setIndexCol('id')
+    cw = ClassWeighter()
+    pipeline = Pipeline().setStages([ru, cw, rf])
+    paramGrid = \
+        (ParamGridBuilder()
+         .addGrid(rf.numTrees, [50, 75, 100])
+         .addGrid(rf.featureSubsetStrategy, ['sqrt'])
+         .addGrid(rf.impurity, ['gini', 'entropy'])
+         .addGrid(rf.maxDepth, [5, 15, 30])
+         .addGrid(rf.minInstancesPerNode, [1])
+         .addGrid(rf.subsamplingRate, [1.0, 0.66, 0.4])
+         .addGrid(cw.classWeight, [[1/36, 1.0], [1/9.0, 1.0]])
+         .addGrid(ru.targetImbalanceRatio, [9.0, 36.0])
+         .build())
+    pr_evaluator = \
+        BinaryClassificationEvaluator(labelCol="label",
+                                      rawPredictionCol="rawPrediction",
+                                      metricName="areaUnderPR")
+    tvs = CrossValidator(estimator=pipeline,
+                         estimatorParamMaps=paramGrid,
+                         evaluator=pr_evaluator,
+                         numFolds=4,
+                         collectSubModels=True)
+
+    model = tvs.fit(train_samples)
+
+    return model
+
 
 
 def compute_precision_recall(predictions, threshold):
