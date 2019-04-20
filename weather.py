@@ -2,8 +2,11 @@ import re
 import datetime
 from io import StringIO
 from os.path import isdir
+from math import exp
 from bs4 import BeautifulSoup
-from pyspark.sql.functions import udf, col, year, month, dayofmonth, explode
+from pyspark.sql import Window
+from pyspark.sql.functions import udf, col, year, month, dayofmonth, \
+                                  explode, lag, coalesce, lit
 from pyspark.sql.types import StructField, FloatType, StructType, \
                               IntegerType, ArrayType, DateType
 from requests import get
@@ -179,6 +182,30 @@ def get_weather_station_weather_df(spark, stations_id):
                   c['wind_chill'].alias('wind_chill'),
                   c['temp'].alias('temp'),
                   c['risky_weather'].alias('risky_weather')))
+
+    # We make a moving average of risky_weather since the effect of a risky
+    # weather is distributed in the next hours
+    def weighted_average(c, window, offsets, weights):
+        def value(i):
+            return lag(c, -i).over(window)
+
+        values = [coalesce(value(i) * w, lit(0)) 
+                for i, w in zip(offsets, weights)]
+
+        return sum(values, lit(0))
+
+    window = (Window
+            .partitionBy('station_id')
+            .orderBy('date'))
+    offsets = range(-23, 1)
+    l = 0.5
+    weights = [exp(l*t) for t in offsets]
+    weights = [w/sum(weights) for w in weights]
+    df = df.withColumn('risky_weather',
+                            weighted_average('risky_weather',
+                                            window,
+                                            offsets,
+                                            weights))
 
     df.write.parquet(cache_file)
 
