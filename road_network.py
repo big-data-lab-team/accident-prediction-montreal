@@ -7,12 +7,16 @@ from zipfile import ZipFile
 from shutil import rmtree
 from io import BytesIO
 from bs4 import BeautifulSoup
+from pyspark.sql import Window
 from pyspark.sql.functions import col, abs, hash, atan2, \
                                   sqrt, cos, sin, radians, \
-                                  udf, monotonically_increasing_id
+                                  udf, monotonically_increasing_id, \
+                                  concat, row_number
 from pyspark.sql.types import StringType
 from utils import raise_parquet_not_del_error
 from workdir import workdir
+from road_network_nids import unknow_file_included_nids
+
 
 
 def get_road_df(spark, use_cache=True):
@@ -79,18 +83,38 @@ def fetch_road_network():
         print('Skip fetching road network: already downloaded')
         return
     print('Fetching road network...')
-    try:
-        url = 'http://ftp.maps.canada.ca/pub/nrcan_rncan'\
+    url = 'http://ftp.maps.canada.ca/pub/nrcan_rncan'\
                 '/vector/geobase_nrn_rrn/qc/kml_en/'
-        html_list = urlopen(url)
-        bs = BeautifulSoup(html_list, 'lxml')
-    except (URLError, HTTPError):
-        print('Unable to reach dataset server')
-        raise
-    files = map(lambda tr: tr.a.text, bs.body.table.find_all('tr')[3:-1])
-    files = filter(lambda f: re.match('.*_[4-7]_(5[5-9]|60).kmz', f), files)
     if not os.path.isdir(workdir + 'data/road-network'):
         os.mkdir(workdir + 'data/road-network')
+    files = \
+        ['TNO_terrestre_du_TE_de_Montréal_6_60.kmz', 'Mont-Royal_4_58.kmz',
+         "L'Île-Dorval_4_57.kmz", 'Montréal_4_58.kmz', 'Unknown_5_57.kmz',
+         'Unknown_5_58.kmz', 'Unknown_4_55.kmz', 'Montréal_5_59.kmz',
+         'Unknown_5_56.kmz', 'Montréal_4_55.kmz', "L'Île-Dorval_4_58.kmz",
+         'Mont-Royal_5_59.kmz', 'Montréal_4_60.kmz', 'Montréal_4_56.kmz',
+         'Montréal_6_60.kmz', 'Montréal-Ouest_4_58.kmz',
+         'Senneville_4_56.kmz', 'Montréal_6_58.kmz', 'Unknown_4_59.kmz',
+         'Montréal_4_57.kmz', 'Montréal_5_58.kmz', 'Montréal_7_60.kmz',
+         'Unknown_6_60.kmz', 'Mont-Royal_5_58.kmz', 'Hampstead_4_58.kmz',
+         'Montréal-Est_6_60.kmz', 'Sainte-Anne-de-Bellevue_4_56.kmz',
+         'Hampstead_4_59.kmz', 'Dorval_4_57.kmz',
+         'TNO_aquatique_du_TE_de_Montréal_5_60.kmz', 'Montréal_5_60.kmz',
+         'Unknown_4_60.kmz', 'TNO_terrestre_du_TE_de_Montréal_5_60.kmz',
+         'Montréal_5_56.kmz', 'Côte-Saint-Luc_5_58.kmz',
+         'Dollard-Des_Ormeaux_5_57.kmz', 'Dorval_4_58.kmz',
+         "Baie-D'Urfé_4_56.kmz", 'TNO_aquatique_du_TE_de_Montréal_5_58.kmz',
+         'Senneville_4_55.kmz', 'Unknown_6_59.kmz', 'Beaconsfield_4_57.kmz',
+         'Sainte-Anne-de-Bellevue_4_55.kmz', 'Montréal_5_57.kmz',
+         'Westmount_4_59.kmz', 'Beaconsfield_4_56.kmz', 'Unknown_4_56.kmz',
+         'Unknown_5_59.kmz', 'Unknown_4_57.kmz', 'Kirkland_4_57.kmz',
+         'Westmount_5_59.kmz', 'Côte-Saint-Luc_4_58.kmz',
+         'Pointe-Claire_4_57.kmz', 'Montréal_4_59.kmz', 'Unknown_5_60.kmz',
+         'Côte-Saint-Luc_4_59.kmz', 'Unknown_4_58.kmz',
+         'Dollard-Des_Ormeaux_4_56.kmz', 'Dorval_5_57.kmz',
+         'Montréal-Ouest_4_59.kmz', 'Pointe-Claire_4_56.kmz',
+         'Montréal-Est_6_59.kmz', 'Dollard-Des_Ormeaux_4_57.kmz',
+         'Montréal_6_59.kmz']
     for file in files:
         urlretrieve(f'{url}{quote(file)}',
                     workdir + 'data/road-network/{0}'.format(file))
@@ -115,6 +139,11 @@ def get_kml_content(soup):
             center = placemark.MultiGeometry.Point.coordinates.text.split(',')
             coordinates_list = (placemark.MultiGeometry.LineString.coordinates
                                 .text.split(' '))
+            description = placemark.find('description').text
+            nid = re.search('<th>nid</th>\n<td>([a-f0-9]+)</td>', description).group(1)
+            is_unknown = re.search('<th>left_OfficialPlaceName</th>\n<td>Unknown</td>', description) is not None
+            if is_unknown and (nid not in unknow_file_included_nids):
+                    continue
 
             for coord in coordinates_list:
                 coords = coord.split(',')
@@ -125,7 +154,8 @@ def get_kml_content(soup):
                             float(center[0]),
                             float(center[1]),
                             float(coords[0]),
-                            float(coords[1])])
+                            float(coords[1]),
+                            nid])
             # Add center of the street as a point of the street
             rows.append([
                     street_name,
@@ -133,7 +163,8 @@ def get_kml_content(soup):
                     float(center[0]),
                     float(center[1]),
                     float(center[0]),
-                    float(center[1])])
+                    float(center[1]),
+                    nid])
     return rows
 
 
@@ -167,18 +198,23 @@ def extract_road_segments_df(spark, use_cache=True):
 
     print('Extracting road network dataframe...')
     cols = ['street_name', 'street_type', 'center_long', 'center_lat',
-            'coord_long', 'coord_lat']
+            'coord_long', 'coord_lat', 'nid']
 
     road_seg_df = (get_road_segments_RDD(spark)
                    .flatMap(kml_extract_RDD)
                    .toDF(cols))
 
-    # Adding unique IDs
-    ids = (road_seg_df
-           .select('center_long', 'center_lat')
-           .distinct()
-           .withColumn('street_id', monotonically_increasing_id()))
-    road_seg_df = road_seg_df.join(ids, ['center_long', 'center_lat'])
+    # Some specific road segments have the same nid
+    w = Window.partitionBy('nid').orderBy('center_lat')
+    street_ids = (road_seg_df
+                  .select('nid', 'center_lat', 'center_long')
+                  .distinct()
+                  .select('center_lat', 'center_long',
+                          concat('nid', row_number().over(w)).alias('street_id')))
+
+    road_seg_df = (road_seg_df
+                   .join(street_ids, ['center_lat', 'center_long'])
+                   .drop('nid'))
 
     if use_cache:
         road_seg_df.write.parquet(cache)
