@@ -59,9 +59,25 @@ According to the World report on road traffic injury prevention, 2004, more than
 \end{itemize}
 All the source code used is publicly available on Github under the MIT license.\footnote{https://github.com/GTimothee/accident-prediction-montreal}
 
+need to be extended:
+  how our dataset is bigger because 6 years and precise because road segments
+
+
 \subsection{Related work}
-Accident prediction has been extensively studied in the last decade. The main techniques that have been used at the beginning of the research in road accidents prediction were methods using the Poisson distribution and the negative binomial regression \cite{Chang2005}. Then, as machine learning methods become more popular, algorithms like decision trees have been used in several forms like classification and regression decision trees, frequent pattern trees and random forests
-\cite{Chang2005, Theofilatos2017, Abellan2013, Lin2015}, along with other machine learning algorithms like Support Vector Machines \cite{LI20081611}. Recently, the outstanding progress of deep learning algorithms has resulted in their extensive use in every field, including in Geospatial machine learning (Convolutional Neural Network and Long Short-Term Memory neural network for example) \cite{Yuan2018, QChen2016}.
+Accident prediction has been extensively studied in the last decade. Historically, variation of the Poisson regression such as the negative binomial regression were used to predict the number of accident which occurred on a given road segment. The features usually used include feature from the road such as the number of lanes, the average daily traffic, and the curvature, and weather features such as average precipitation and the temperature. In 2005, Chang \cite{Change2005} compared the performances of a negative binomial regression with that of an Artificial Neural Network to predict the number of accident during a year on a road segment from a major freeway in Taiwan. The dataset used contains data from the years 1997 and 1998, which resulted in 1338 accidents. The ANN achieved slightly better result, with an accuracy of 61.4\% on the test dataset. On the same dataset, Chang et al.\cite{Chang2005b} also used decision trees for accident prediction in order to get more insight on the important variable for accident prediction. It appears that the average daily traffic and the number of days with precipitation are the most useful features. The decision tree reached an accuracy of 52.6\% on the test dataset. Lin et al. \cite{Lin2015} compared Frequent Pattern trees and random forests for feature selection and then k nearest neighbor and bayesian network for real-time accident prediction. Using the mean and sometimes the standard deviation of time series corresponding to the weather condition, the visibility, the traffic volume, the traffc speed and the occupancy, their models predict the occurence of an accident at the end of the time series. They obtain the best result using the Frequent Pattern trees feature selection and the  (add accuracy)
+We note that the used a small sample of the possible negative examples.
+
+  In addition, some other work aim at predicting the serverity of an accident using various information from the accident in order to understand what causes an accident to be fatal. Chong et al. \cite{Chong2005} used decision trees, neural network and an hybrid model using a decision tree and a neural network. They obtained thes best performances with the hybrid model which reached an accuracy of 90\% for the prediction of fatal injuries. They identified that the seatbelt usage, the light conditions and the alcohol usage of the driver are the most important features.
+ 
+To be continued.
+To cite: \cite{Theofilatos2017, Abellan2013, Lin2015}
+
+Recently, the outstanding progress of deep learning algorithms has resulted in their extensive use in every field, including in Geospatial machine learning (Convolutional Neural Network and Long Short-Term Memory neural network for example) \cite{Yuan2018, QChen2016}.
+
+
+
+
+
 \section{Methods}
 \subsection{Choosing a Big Data framework: Apache Spark or Dask}
 According to Dask’s official website, “Dask is a flexible library for parallel computing in Python” \cite{dask}. Apache Spark, on the other hand, describes itself as “a fast and general-purpose cluster computing system” \cite{spark}. Both of them are accepted tools with wide supporting community, even though Apache Spark is a bigger and older project. Although we almost exclusively used Apache Spark’s Python API (called “pySpark”) in this study, we started our experiment using Dask. Some advantages of Dask over Spark made us chose it for our analysis in the first place; For example, Dask “is developed in coordination with […] projects like Numpy, Pandas and Scikit-Learn” \cite{dask}, all widely used Python packages in machine-learning and data science. It is also admitted that Dask is lighter than Spark and designed to be more flexible in terms of applications and algorithms. However, we found ourselves writing a lot more code using Dask than Spark for the same result. Spark map-reduce-based interface is very handy and allows easier processing of datasets. For all these reasons we found out that Spark fitted our needs best and we switched to it at an early time of the study.
@@ -123,7 +139,7 @@ Random forests allow to measure feature importances by computing the total decre
 \section{Results}
 These results have been obtained by training the Balanced Random Forest algorithm on the whole dataset of positive samples, but with only half of the dataset of negative examples we have generated. Therefore the data imbalance is reduced to a factor of 8. To evaluate this model we used a test set containing the last two years of our dataset, the model is trained on the 4 previous years and use only data from these years. For example, the "count\_accident" feature contains only the count of accidents on road segments which occurred from 2012 to 2016.
 
-We obtain an area under the precision-recall curve of 54\% and an area under the ROC curve of 89\%.
+We obtain an area under the precision-recall curve of 54\% and an area under the ROC curve of 89\% on the test dataset.
 This results in the following precision and recall values depending on the chosen probability threshold:
 
 \begin{figure}[htbp]
@@ -136,6 +152,8 @@ As we can see, with a threshold set to 0.63, we can achieve a recall of 85\% wit
 
 \section{Discussion}
 The overall results are good but mostly rely on the count of previous accidents on the road segment. This is not an issue for accident prediction, but it does not help to understand why these roads are particularly dangerous. Accident prediction is a very hard machine learning problem because even if the risk is very high for an accident to occur, and even if an accident almost occur, the by reacting quickly, the driver can manage to avoid it although the conditions were almost exactly the same as when an accident occurs. We would need information on the state of the drivers and the state of the vehicle to significantly improve performances. 
+
+As opposed to what we would have expected, the Balance Random Forest did not obtained much better performances than the Random Forests with random undersampling. We believe this is caused by the fact that negative examples are not that different from each other and that the information they contains is well captured by a single random subsample. We can notice, that the Balance Random FOrest does not overfit as much as the Random Forest algorithm.
 
 However, we believe these results can be improved even without this important feature by adding more spatial features. We can see that the most important variables are the features of the road segment. Therefore we believe providing more context information on where the road is located will greatly help. In another experiment, we have seen the population density and the distance to the closest billboard used as features successfully. However, even with more features and more data, it will be hard to reach very good performances because of the nature of the problem.
 
