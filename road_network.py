@@ -18,7 +18,6 @@ from workdir import workdir
 from road_network_nids import unknow_file_included_nids
 
 
-
 def get_road_df(spark, use_cache=True):
     fetch_road_network()
     return extract_road_segments_df(spark, use_cache)
@@ -84,7 +83,7 @@ def fetch_road_network():
         return
     print('Fetching road network...')
     url = 'http://ftp.maps.canada.ca/pub/nrcan_rncan'\
-                '/vector/geobase_nrn_rrn/qc/kml_en/'
+          '/vector/geobase_nrn_rrn/qc/kml_en/'
     if not os.path.isdir(workdir + 'data/road-network'):
         os.mkdir(workdir + 'data/road-network')
     files = \
@@ -140,10 +139,13 @@ def get_kml_content(soup):
             coordinates_list = (placemark.MultiGeometry.LineString.coordinates
                                 .text.split(' '))
             description = placemark.find('description').text
-            nid = re.search('<th>nid</th>\n<td>([a-f0-9]+)</td>', description).group(1)
-            is_unknown = re.search('<th>left_OfficialPlaceName</th>\n<td>Unknown</td>', description) is not None
+            nid = (re.search('<th>nid</th>\n<td>([a-f0-9]+)</td>', description)
+                   .group(1))
+            is_unknown = \
+                re.search('<th>left_OfficialPlaceName</th>\n<td>Unknown</td>',
+                          description) is not None
             if is_unknown and (nid not in unknow_file_included_nids):
-                    continue
+                continue
 
             for coord in coordinates_list:
                 coords = coord.split(',')
@@ -206,11 +208,13 @@ def extract_road_segments_df(spark, use_cache=True):
 
     # Some specific road segments have the same nid
     w = Window.partitionBy('nid').orderBy('center_lat')
-    street_ids = (road_seg_df
-                  .select('nid', 'center_lat', 'center_long')
-                  .distinct()
-                  .select('center_lat', 'center_long',
-                          concat('nid', row_number().over(w)).alias('street_id')))
+    street_ids = \
+        (road_seg_df
+         .select('nid', 'center_lat', 'center_long')
+         .distinct()
+         .select('center_lat',
+                 'center_long',
+                 concat('nid', row_number().over(w)).alias('street_id')))
 
     road_seg_df = (road_seg_df
                    .join(street_ids, ['center_lat', 'center_long'])

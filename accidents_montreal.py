@@ -13,6 +13,7 @@ from utils import raise_parquet_not_del_error
 from shutil import rmtree
 from workdir import workdir
 
+
 def get_accident_df(spark, use_cache=True):
     fetch_accidents_montreal()
     return read_accidents_montreal_df(spark, use_cache)

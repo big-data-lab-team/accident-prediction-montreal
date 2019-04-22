@@ -45,10 +45,12 @@ def grid_search(spark):
 
     pipeline = Pipeline().setStages([xgboost])
     model = pipeline.fit(trainDF)
-    paramGrid = (ParamGridBuilder().addGrid(xgboost.max_depth, [x for x in range(3, 20, 6)])
-                                   .addGrid(xgboost.eta, [x for x in np.linspace(0.2, 0.6, 4)])
-                                   .addGrid(xgboost.scale_pos_weight, [x for x in np.linspace(0.03, 1.0, 3)])
-                                   .build())
+    paramGrid = (ParamGridBuilder()
+                 .addGrid(xgboost.max_depth, [x for x in range(3, 20, 6)])
+                 .addGrid(xgboost.eta, [x for x in np.linspace(0.2, 0.6, 4)])
+                 .addGrid(xgboost.scale_pos_weight,
+                          [x for x in np.linspace(0.03, 1.0, 3)])
+                 .build())
     evaluator = BinaryClassificationEvaluator(labelCol="label",
                                               rawPredictionCol="probabilities",
                                               metricName="areaUnderPR")
@@ -75,7 +77,8 @@ def grid_search(spark):
             file.write(f"Area under PR: {result}\n")
 
     prediction = bestModel.transform(testDF)
-    prediction = prediction.withColumn("rawPrediction", prediction['probabilities'])
+    prediction = prediction.withColumn("rawPrediction",
+                                       prediction['probabilities'])
     area_under_PR, f1_score = evaluate_binary_classifier(prediction)
 
     with open(workdir + 'data/xgboost_tuning_perf_1.txt', 'w') as file:
@@ -86,5 +89,5 @@ def grid_search(spark):
 
 spark = init_spark()
 spark.sparkContext.addPyFile(workdir + "data/sparkxgb.zip")
-from sparkxgb import XGBoostEstimator
+from sparkxgb import XGBoostEstimator  # noqa
 grid_search(spark)

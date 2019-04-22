@@ -13,8 +13,8 @@ from workdir import workdir
 
 spark = init_spark()
 
-i=1
-sampleFraction=0.01
+i = 1
+sampleFraction = 0.01
 
 neg_samples = get_negative_samples(spark).sample(sampleFraction)
 pos_samples = get_positive_samples(spark).sample(sampleFraction)

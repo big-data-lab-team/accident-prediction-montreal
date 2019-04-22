@@ -9,6 +9,7 @@ class HasClassWeight(Params):
                         "classWeight",
                         "Array containing the weight to give to each class",
                         typeConverter=TypeConverters.toListFloat)
+
     def __init__(self):
         super(HasClassWeight, self).__init__()
 
@@ -36,4 +37,3 @@ class ClassWeighter(Transformer, HasWeightCol, HasLabelCol, HasClassWeight):
                                   when(col(self.getLabelCol()) == 0.0,
                                        lit(class_weight[0]))
                                   .otherwise(lit(class_weight[1])))
-

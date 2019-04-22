@@ -108,8 +108,8 @@ def get_station_weather_month(station_id, year, month):
     df['risky_weather'] = np.nan
     df.loc[df['Temp (°C)'].notna(), 'risky_weather'] = \
         df['Weather'].astype(str).str.contains('snow|ice|freezing',
-                                   regex=True,
-                                   flags=re.IGNORECASE)
+                                               regex=True,
+                                               flags=re.IGNORECASE)
 
     return [(
         int(r['Day']),
@@ -189,23 +189,22 @@ def get_weather_station_weather_df(spark, stations_id):
         def value(i):
             return lag(c, -i).over(window)
 
-        values = [coalesce(value(i) * w, lit(0)) 
-                for i, w in zip(offsets, weights)]
+        values = [coalesce(value(i) * w, lit(0))
+                  for i, w in zip(offsets, weights)]
 
         return sum(values, lit(0))
 
     window = (Window
-            .partitionBy('station_id')
-            .orderBy('date'))
+              .partitionBy('station_id')
+              .orderBy('date'))
     offsets = range(-23, 1)
-    l = 0.5
-    weights = [exp(l*t) for t in offsets]
+    weights = [exp(0.5*t) for t in offsets]
     weights = [w/sum(weights) for w in weights]
     df = df.withColumn('risky_weather',
-                            weighted_average('risky_weather',
-                                            window,
-                                            offsets,
-                                            weights))
+                       weighted_average('risky_weather',
+                                        window,
+                                        offsets,
+                                        weights))
 
     df.write.parquet(cache_file)
 
@@ -228,7 +227,7 @@ def get_weather_station_coords(station_id):
     lat = coords_div.div.div.find_all('div', recursive=False)[1].text
     long = (coords_div.find_all('div', recursive=False)[1].div
             .find_all('div', recursive=False)[1].text)
-    return DMS_to_degree(lat), DMS_to_degree(long)
+    return DMS_to_degree(lat), -DMS_to_degree(long)
 
 
 def get_weather_station_coords_df(spark, stations_id):

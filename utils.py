@@ -20,18 +20,18 @@ def init_spark():
     sess = (SparkSession
             .builder
             .appName("Accident prediction")
-            #.master("local[6]")
-            #.config("spark.driver.memory", "4g")
+            # .master("local[6]")
+            # .config("spark.driver.memory", "4g")
             .config("spark.rdd.compress", "True")
             .config("spark.serializer",
                     "org.apache.spark.serializer.KryoSerializer")
             # In local mode there is only one executor: the driver
             # .config("spark.executor.memory", "1536m")
-            #.config("spark.driver.memory", "3g")
+            # .config("spark.driver.memory", "3g")
             # Prevent time out errors see: https://github.com/rjagerman/mammoth
             # /wiki/ExecutorLost-Failure:-Heartbeat-timeouts
-            #.config("spark.cleaner.periodicGC.interval", "5min")
-            #.config("spark.network.timeout", "300s")
+            # .config("spark.cleaner.periodicGC.interval", "5min")
+            # .config("spark.network.timeout", "300s")
             .config("spark.driver.extraClassPath",
                     f"{workdir}data/xgboost4j-spark-0.72.jar"
                     + f":{workdir}data/xgboost4j-0.72.jar")
@@ -42,6 +42,7 @@ def init_spark():
     for param in sess.sparkContext.getConf().getAll():
         print(f"\t{param[0]}: {param[1]}")
     return sess
+
 
 def get_with_retry(
     url,

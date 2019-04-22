@@ -27,12 +27,16 @@ class HasTargetImbalanceRatio(Params):
         """
         return self._set(targetImbalanceRatio=value)
 
+
 class HasIndexCol(Params):
     """
     Mixin for param indexCol: index column name.
     """
 
-    indexCol = Param(Params._dummy(), "indexCol", "index column name.", typeConverter=TypeConverters.toString)
+    indexCol = Param(Params._dummy(),
+                     "indexCol",
+                     "index column name.",
+                     typeConverter=TypeConverters.toString)
 
     def __init__(self):
         super(HasIndexCol, self).__init__()
@@ -67,6 +71,7 @@ class RandomUnderSampler(Estimator, HasTargetImbalanceRatio, HasSeed,
 
         return (RandomUnderSamplerModel(indexes_to_remove, self.getSeed())
                 .setTargetImbalanceRatio(self.getTargetImbalanceRatio()))
+
 
 class RandomUnderSamplerModel(Transformer, HasTargetImbalanceRatio):
     def __init__(self, indexesToRemove, seed):
