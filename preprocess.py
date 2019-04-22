@@ -428,48 +428,74 @@ def get_dataset_df(spark, pos_samples, neg_samples):
     neg_samples = neg_samples.withColumn('label', lit(0.0))
 
     pos_samples = pos_samples.select(*neg_samples.columns)
-    df = pos_samples.union(neg_samples)
-    street_lvl_index, df = \
-        index_street_categories(spark, pos_samples, df, 'street_level')
-    street_typ_index, df = \
-        index_street_categories(spark, pos_samples, df, 'street_type')
 
-    assembler = VectorAssembler(outputCol="features",
-                                inputCols=features_col,
-                                handleInvalid='keep'
-                                )
-    df = (assembler.transform(df)
-          .select('sample_id',
-                  'street_id',
-                  'date', 'hour', 'features', 'label'))
+    train_pos, train_neg, test_pos, test_neg = \
+        train_test_split(pos_samples, neg_samples)
 
-    return (street_lvl_index,
-            street_typ_index,
-            df.withColumn('id', monotonically_increasing_id()))
+    roads = get_road_features_df(spark)
+    accident_count = get_accident_count(spark, train_pos, roads)
+    street_level_index = \
+        get_street_categories_index(spark, 'street_level', train_pos, roads)
+    street_type_index = \
+        get_street_categories_index(spark, 'street_type', train_pos, roads)
+
+    def prepare_dataset(va, pos_samples, neg_samples):
+        dataset = pos_samples.union(neg_samples)
+        dataset = (dataset
+                   .join(accident_count, 'street_id')
+                   .join(street_level_index, 'street_level')
+                   .join(street_type_index, 'street_type')
+                   .drop('street_level', 'street_type'))
+        return (va.transform(dataset)
+                .select('sample_id', 'street_id', 'date',
+                        'hour', 'features', 'label'))
+
+    va = VectorAssembler(outputCol="features",
+                         inputCols=features_col,
+                         handleInvalid='keep')
+
+    train_set = prepare_dataset(va, train_pos, train_neg)
+    test_set = prepare_dataset(va, test_pos, test_neg)
+
+    return train_set, test_set
 
 
-def index_street_categories(spark, pos_samples, df, col_name):
-    road = get_road_features_df(spark)
-    street_cat_distrib = (road
+def train_test_split(pos_samples, neg_samples):
+    split_date = datetime.datetime.fromisoformat('2017-01-01')
+    train_pos = (pos_samples.filter(col('date') < split_date))
+    train_neg = (neg_samples.filter(col('date') < split_date))
+    test_pos = (pos_samples.filter(col('date') >= split_date))
+    test_neg = (neg_samples.filter(col('date') >= split_date))
+    return train_pos, train_neg, test_pos, test_neg
+
+
+def get_accident_count(spark, train_pos, road_features):
+    return (train_pos
+            .select('street_id')
+            .groupBy('street_id').count()
+            .join(road_features.select('street_id'), 'street_id', 'outer')
+            .na.fill(0, ['count'])
+            .withColumnRenamed('count', 'accident_count'))
+
+
+def get_street_categories_index(spark, col_name, pos_samples, road_features):
+    n_roads = road_features.count()
+    street_cat_distrib = (road_features
                           .select(col_name)
                           .na.fill("unknown")
                           .groupBy(col_name).count()
-                          .withColumn('p', col('count') / lit(road.count()))
+                          .withColumn('p', col('count') / lit(n_roads))
                           .orderBy(col('p').desc())
                           .drop('count'))
-    street_cat_indexes = \
-        (pos_samples
-         .select(col_name)
-         .na.fill("unknown")
-         .groupBy(col_name).count()
-         .withColumn('p_pos', col('count') / lit(pos_samples.count()))
-         .drop('count')
-         .join(street_cat_distrib, col_name)
-         .na.fill(0, ['p_pos'])
-         .select(col_name, (col('p_pos') - col('p')).alias('risk'))
-         .withColumn(col_name + '_indexed',
-                     row_number().over(Window.orderBy(col('risk').desc())))
-         .drop('risk'))
-
-    return (street_cat_indexes,
-            df.join(street_cat_indexes, col_name).drop(col_name))
+    return (pos_samples
+            .select(col_name)
+            .na.fill("unknown")
+            .groupBy(col_name).count()
+            .withColumn('p_pos', col('count') / lit(pos_samples.count()))
+            .drop('count')
+            .join(street_cat_distrib, col_name)
+            .na.fill(0, ['p_pos'])
+            .select(col_name, (col('p_pos') - col('p')).alias('risk'))
+            .withColumn(col_name + '_indexed',
+                        row_number().over(Window.orderBy(col('risk').desc())))
+            .drop('risk'))
