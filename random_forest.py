@@ -5,12 +5,13 @@ from pyspark.ml.tuning import TrainValidationSplit, \
                               ParamGridBuilder, \
                               CrossValidator
 from pyspark.ml import Pipeline
+from pyspark.sql import Window
 from pyspark.sql.types import DoubleType
-from pyspark.sql.functions import udf, col
+from pyspark.sql.functions import udf, col, floor, sum
 import pandas as pd
 import numpy as np
 from preprocess import features_col
-from random_undersampler import RandomUnderSampler 
+from random_undersampler import RandomUnderSampler
 from class_weighter import ClassWeighter
 
 
@@ -35,10 +36,10 @@ def random_forest_tuning(train_samples):
                                       rawPredictionCol="rawPrediction",
                                       metricName="areaUnderPR")
     tvs = TrainValidationSplit(estimator=pipeline,
-                         estimatorParamMaps=paramGrid,
-                         evaluator=pr_evaluator,
-                         trainRatio=0.8,
-                         collectSubModels=True)
+                               estimatorParamMaps=paramGrid,
+                               evaluator=pr_evaluator,
+                               trainRatio=0.8,
+                               collectSubModels=True)
 
     model = tvs.fit(train_samples)
 
@@ -77,7 +78,6 @@ def balanced_random_forest_tuning(train_samples):
     model = tvs.fit(train_samples)
 
     return model
-
 
 
 def compute_precision_recall(predictions, threshold):
@@ -119,7 +119,7 @@ def compute_precision_recall(predictions, threshold):
     return (precision, recall)
 
 
-def compute_precision_recall_graph(predictions, n_points):
+def compute_precision_recall_graph_slow(predictions, n_points):
     def gen_row(threshold):
         result = compute_precision_recall(predictions, threshold)
         return (threshold, result[0], result[1])
@@ -129,6 +129,43 @@ def compute_precision_recall_graph(predictions, n_points):
                          columns=['Threshold', 'Precision', 'Recall'])
 
     return graph
+
+
+def compute_precision_recall_graph(predictions, n_points):
+    inf_cumulative_window = \
+        (Window
+         .partitionBy('label')
+         .orderBy('id_bucket')
+         .rowsBetween(Window.unboundedPreceding, Window.currentRow))
+    sup_cumulative_window = \
+        (Window
+         .partitionBy('label')
+         .orderBy('id_bucket')
+         .rowsBetween(1, Window.unboundedFollowing))
+
+    return \
+        (predictions
+         .select('label',
+                 floor(col('probability') * n_points).alias('id_bucket'))
+         .groupBy('label', 'id_bucket').count()
+         .withColumn('count_negatives',
+                     sum('count').over(inf_cumulative_window))
+         .withColumn('count_positives',
+                     sum('count').over(sup_cumulative_window))
+         .groupBy('id_bucket').pivot('label', [0, 1])
+         .sum('count_negatives', 'count_positives')
+         .select(((col('id_bucket') + 1) / n_points).alias('threshold'),
+                 col('0_sum(count_negatives)').alias('true_negative'),
+                 col('0_sum(count_positives)').alias('false_positive'),
+                 col('1_sum(count_negatives)').alias('false_negative'),
+                 col('1_sum(count_positives)').alias('true_positive'))
+         .select(col('threshold').alias('Threshold'),
+                 (col('true_positive')
+                 / (col('true_positive') + col('false_positive')))
+                 .alias('Precision'),
+                 (col('true_positive')
+                 / (col('true_positive') + col('false_negative')))
+                 .alias('Recall'))).toPandas()
 
 
 def get_feature_importances(model):
