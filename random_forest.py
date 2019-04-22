@@ -143,10 +143,19 @@ def compute_precision_recall_graph(predictions, n_points):
          .orderBy('id_bucket')
          .rowsBetween(1, Window.unboundedFollowing))
 
+    def prob_positive(v):
+        try:
+            return float(v[1])
+        except ValueError:
+            return None
+
+    prob_positive = udf(prob_positive, DoubleType())
+
     return \
         (predictions
          .select('label',
-                 floor(col('probability') * n_points).alias('id_bucket'))
+                 floor(prob_positive('probability') * n_points)
+                 .alias('id_bucket'))
          .groupBy('label', 'id_bucket').count()
          .withColumn('count_negatives',
                      sum('count').over(inf_cumulative_window))
@@ -165,7 +174,9 @@ def compute_precision_recall_graph(predictions, n_points):
                  .alias('Precision'),
                  (col('true_positive')
                  / (col('true_positive') + col('false_negative')))
-                 .alias('Recall'))).toPandas()
+                 .alias('Recall'))
+         .orderBy('Threshold')
+         .toPandas())
 
 
 def get_feature_importances(model):
