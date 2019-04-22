@@ -19,6 +19,7 @@ from road_network import distance_intermediate_formula,\
                          get_road_features_df,\
                          get_road_df
 from weather import get_weather_df
+from solar_features import add_solar_features
 from workdir import workdir
 
 
@@ -272,6 +273,8 @@ def get_negative_samples(spark, use_cache=True, save_to=None, road_limit=None,
     negative_samples = \
         negative_samples.join(negative_sample_weather, 'sample_id')
     negative_samples = add_date_features(negative_samples)
+    negative_samples = add_solar_features(negative_samples)
+
     negative_samples = negative_samples.persist()
 
     if use_cache:
@@ -316,6 +319,7 @@ def get_positive_samples(spark, road_df=None, weather_df=None,
                         .withColumnRenamed('accident_id', 'sample_id'))
 
     positive_samples = add_date_features(positive_samples)
+    positive_samples = add_solar_features(positive_samples)
     positive_samples = positive_samples.persist()
 
     if use_cache:
@@ -403,7 +407,8 @@ features_col = ['hour_cos',
                 'risky_weather',
                 'dayofyear_cos',
                 'dayofyear_sin',
-                # 'dayofweek',
+                'dayofweek',
+                'solar_elevation',
                 # 'dayofmonth_cos',
                 # 'dayofmonth_sin',
                 ]
