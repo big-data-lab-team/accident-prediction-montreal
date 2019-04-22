@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import accident_prediction_montreal
 from preprocess import get_negative_samples, get_positive_samples
 from utils import init_spark
 from workdir import workdir

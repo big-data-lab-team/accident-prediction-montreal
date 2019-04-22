@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import accident_prediction_montreal
 import os
 from functools import reduce
 import datetime
