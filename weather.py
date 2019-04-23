@@ -107,7 +107,7 @@ def get_station_weather_month(station_id, year, month):
     # available at all, so it should not be considered as null risky_weater
     df['risky_weather'] = np.nan
     df.loc[df['Temp (°C)'].notna(), 'risky_weather'] = \
-        df['Weather'].astype(str).str.contains('snow|ice|freezing',
+        df['Weather'].astype(str).str.contains('snow',
                                                regex=True,
                                                flags=re.IGNORECASE)
 
