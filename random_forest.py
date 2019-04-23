@@ -181,9 +181,7 @@ def compute_precision_recall_graph(predictions, n_points):
 
 def get_feature_importances(model):
     feature_importances = pd.DataFrame(model.featureImportances.toArray())
-    dayofweek_features = [f'{features_col[-1]}_{i}' for i in range(1, 8)]
-    feature_names = features_col[:-1] + dayofweek_features
-    feature_importances.index = feature_names
+    feature_importances.index = features_col
     feature_importances.columns = ["Feature importances"]
     feature_importances.sort_values(['Feature importances'], ascending=False)
     return feature_importances
