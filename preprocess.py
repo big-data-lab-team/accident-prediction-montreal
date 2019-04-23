@@ -432,6 +432,9 @@ def get_dataset_df(spark, pos_samples, neg_samples):
     pos_samples = pos_samples.withColumn('label', lit(1.0))
     neg_samples = neg_samples.withColumn('label', lit(0.0))
 
+    # Make sure sample_id is unique
+    neg_samples = neg_samples.withColumn('sample_id', -1 * col('sample_id'))
+
     pos_samples = pos_samples.select(*neg_samples.columns)
 
     train_pos, train_neg, test_pos, test_neg = \
