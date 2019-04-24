@@ -19,9 +19,9 @@ def evaluate_binary_classifier(predictions):
                                       metricName="areaUnderROC")
     area_under_ROC = ROC_evaluator.evaluate(predictions)
     acc_evaluator = \
-    MulticlassClassificationEvaluator(predictionCol='prediction',
-                                      labelCol='label',
-                                      metricName='accuracy')
+        MulticlassClassificationEvaluator(predictionCol='prediction',
+                                          labelCol='label',
+                                          metricName='accuracy')
     acc_score = acc_evaluator.evaluate(predictions)
 
     print(f"Area Under PR = {area_under_PR}")
