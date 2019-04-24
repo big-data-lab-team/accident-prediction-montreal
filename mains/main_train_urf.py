@@ -10,7 +10,6 @@ from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit, CrossValidator
 from pyspark.ml import Pipeline
 from random_undersampler import RandomUnderSampler
-from class_weighter import ClassWeighter
 from workdir import workdir
 from random_forest import compute_precision_recall_graph
 from random_forest import get_feature_importances
@@ -18,9 +17,9 @@ from evaluate import evaluate_binary_classifier
 
 # Prepare result directory
 i = 1
-while isdir(workdir + f'data/brf_{i}'):
+while isdir(workdir + f'data/urf_{i}'):
     i += 1
-mkdir(workdir + f'data/brf_{i}')
+mkdir(workdir + f'data/urf_{i}')
 
 spark = init_spark()
 neg_samples = get_negative_samples(spark).sample(1.0)
@@ -31,19 +30,20 @@ imbalance_ratio = (neg_samples.count()/pos_samples.count())
 train_set, test_set = get_dataset_df(spark, pos_samples, neg_samples)
 train_set, test_set = train_set.persist(), test_set.persist()
 
-brf = RandomForestClassifier(labelCol="label",
+rf = RandomForestClassifier(labelCol="label",
                              featuresCol="features",
                              cacheNodeIds=True,
                              maxDepth=17,
                              impurity='entropy',
                              featureSubsetStrategy='sqrt',
-                             weightCol='weight',
                              minInstancesPerNode=10,
                              numTrees=100,
                              subsamplingRate=1.0,
                              maxMemoryInMB=768)
-cw = ClassWeighter().setClassWeight([1/imbalance_ratio, 1.0])
-pipeline = Pipeline().setStages([cw, brf])
+ru = (RandomUnderSampler()
+      .setIndexCol('sample_id')
+      .setTargetImbalanceRatio(1.0))
+pipeline = Pipeline().setStages([ru, rf])
 model = pipeline.fit(train_set)
 
 
@@ -55,14 +55,14 @@ def write_params(model, path):
           for k in params:
               file.write(f'{k.name}: {params[k]}\n')
 
-write_params(model, workdir + f'data/brf_{i}/params')
+write_params(model, workdir + f'data/urf_{i}/params')
 
 
 predictions = model.transform(test_set).persist()
 train_predictions = model.transform(train_set).persist()
 
 # Write results
-with open(workdir + f'data/brf_{i}/results', 'w') as file:
+with open(workdir + f'data/urf_{i}/results', 'w') as file:
     test_res = evaluate_binary_classifier(predictions)
     train_res = evaluate_binary_classifier(train_predictions)
     file.write('Test set:\n')
@@ -78,9 +78,9 @@ with open(workdir + f'data/brf_{i}/results', 'w') as file:
 
 # Write feature importances
 feature_importances = get_feature_importances(model.stages[1])
-feature_importances.to_csv(workdir + f'data/brf_{i}/feature_importances.csv')
+feature_importances.to_csv(workdir + f'data/urf_{i}/feature_importances.csv')
 
 # Write precision recall curve
 precision_recall = compute_precision_recall_graph(predictions, 20)
-precision_recall.to_csv(workdir + f'data/brf_{i}/precision_recall.csv')
+precision_recall.to_csv(workdir + f'data/urf_{i}/precision_recall.csv')
 

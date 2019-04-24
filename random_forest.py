@@ -174,7 +174,10 @@ def compute_precision_recall_graph(predictions, n_points):
                  .alias('Precision'),
                  (col('true_positive')
                  / (col('true_positive') + col('false_negative')))
-                 .alias('Recall'))
+                 .alias('Recall'),
+                 (col('false_positive')
+                 / (col('false_positive') + col('true_negative')))
+                 .alias('FPR'))
          .orderBy('Threshold')
          .toPandas())
 
