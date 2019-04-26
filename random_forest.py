@@ -187,5 +187,7 @@ def get_feature_importances(model):
     feature_importances = pd.DataFrame(model.featureImportances.toArray())
     feature_importances.index = features_col
     feature_importances.columns = ["Feature importances"]
-    feature_importances = feature_importances.sort_values(['Feature importances'], ascending=False)
+    feature_importances = \
+        feature_importances.sort_values(['Feature importances'],
+                                        ascending=False)
     return feature_importances
