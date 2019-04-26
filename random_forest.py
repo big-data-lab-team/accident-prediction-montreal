@@ -169,16 +169,32 @@ def compute_threshold_dependent_metrics(predictions, n_points):
                  col('0_sum(count_positives)').alias('false_positive'),
                  col('1_sum(count_negatives)').alias('false_negative'),
                  col('1_sum(count_positives)').alias('true_positive'))
-         .withColumn('Precision', col('true_positive') / (col('true_positive') + col('false_positive')))
-         .withColumn('Recall', col('true_positive') / (col('true_positive') + col('false_negative')))
-         .withColumn('False positive rate', col('false_positive') / (col('false_positive') + col('true_negative')))
-         .withColumn('Accuracy', (col('true_positive') + col('true_negative')) / (col('true_positive') + col('true_negative') + col('false_positive') + col('false_negative')))
-         .withColumn('F1 Score', (2 * col('Precision') * col('Recall')) / (col('Precision') + col('Recall'))) 
-         .withColumn('True negative percentage', col('true_negative') / count_examples)
-         .withColumn('True positive percentage', col('true_positive') / count_examples)
-         .withColumn('False negative percentage', col('false_negative') / count_examples)
-         .withColumn('False positive percentage', col('false_positive') / count_examples)
-         .drop('true_negative', 'true_positive', 'false_positive', 'false_negative')
+         .withColumn('Precision',
+                     col('true_positive')
+                     / (col('true_positive') + col('false_positive')))
+         .withColumn('Recall',
+                     col('true_positive')
+                     / (col('true_positive') + col('false_negative')))
+         .withColumn('False positive rate',
+                     col('false_positive')
+                     / (col('false_positive') + col('true_negative')))
+         .withColumn('Accuracy',
+                     (col('true_positive') + col('true_negative'))
+                     / (col('true_positive') + col('true_negative')
+                        + col('false_positive') + col('false_negative')))
+         .withColumn('F1 Score',
+                     (2 * col('Precision') * col('Recall'))
+                     / (col('Precision') + col('Recall')))
+         .withColumn('True negative percentage',
+                     col('true_negative') / count_examples)
+         .withColumn('True positive percentage',
+                     col('true_positive') / count_examples)
+         .withColumn('False negative percentage',
+                     col('false_negative') / count_examples)
+         .withColumn('False positive percentage',
+                     col('false_positive') / count_examples)
+         .drop('true_negative', 'true_positive',
+               'false_positive', 'false_negative')
          .orderBy('Threshold')
          .toPandas())
 
