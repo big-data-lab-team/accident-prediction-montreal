@@ -131,7 +131,7 @@ def compute_precision_recall_graph_slow(predictions, n_points):
     return graph
 
 
-def compute_precision_recall_graph(predictions, n_points):
+def compute_threshold_dependent_metrics(predictions, n_points):
     inf_cumulative_window = \
         (Window
          .partitionBy('label')
@@ -150,6 +150,7 @@ def compute_precision_recall_graph(predictions, n_points):
             return None
 
     prob_positive = udf(prob_positive, DoubleType())
+    count_examples = predictions.count()
 
     return \
         (predictions
@@ -163,21 +164,21 @@ def compute_precision_recall_graph(predictions, n_points):
                      sum('count').over(sup_cumulative_window))
          .groupBy('id_bucket').pivot('label', [0, 1])
          .sum('count_negatives', 'count_positives')
-         .select(((col('id_bucket') + 1) / n_points).alias('threshold'),
+         .select(((col('id_bucket') + 1) / n_points).alias('Threshold'),
                  col('0_sum(count_negatives)').alias('true_negative'),
                  col('0_sum(count_positives)').alias('false_positive'),
                  col('1_sum(count_negatives)').alias('false_negative'),
                  col('1_sum(count_positives)').alias('true_positive'))
-         .select(col('threshold').alias('Threshold'),
-                 (col('true_positive')
-                 / (col('true_positive') + col('false_positive')))
-                 .alias('Precision'),
-                 (col('true_positive')
-                 / (col('true_positive') + col('false_negative')))
-                 .alias('Recall'),
-                 (col('false_positive')
-                 / (col('false_positive') + col('true_negative')))
-                 .alias('FPR'))
+         .withColumn('Precision', col('true_positive') / (col('true_positive') + col('false_positive')))
+         .withColumn('Recall', col('true_positive') / (col('true_positive') + col('false_negative')))
+         .withColumn('False positive rate', col('false_positive') / (col('false_positive') + col('true_negative')))
+         .withColumn('Accuracy', (col('true_positive') + col('true_negative')) / (col('true_positive') + col('true_negative') + col('false_positive') + col('false_negative')))
+         .withColumn('F1 Score', (2 * col('Precision') * col('Recall')) / (col('Precision') + col('Recall'))) 
+         .withColumn('True negative percentage', col('true_negative') / count_examples)
+         .withColumn('True positive percentage', col('true_positive') / count_examples)
+         .withColumn('False negative percentage', col('false_negative') / count_examples)
+         .withColumn('False positive percentage', col('false_positive') / count_examples)
+         .drop('true_negative', 'true_positive', 'false_positive', 'false_negative')
          .orderBy('Threshold')
          .toPandas())
 
