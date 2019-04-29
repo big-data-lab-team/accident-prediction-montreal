@@ -17,10 +17,16 @@ def create_result_dir(algorithm):
 def write_params(model, n_neg_samples, result_dir):
     with open(result_dir + '/params', 'w') as file:
         file.write(f'count_negative_samples: {n_neg_samples}\n')
-        for stage in model.stages:
-            params = stage.extractParamMap()
+        def write_params(model):
+            params = model.extractParamMap()
             for k in params:
                 file.write(f'{k.name}: {params[k]}\n')
+        if hasattr(model, 'stages'):
+            for stage in model.stages:
+                write_params(stage)
+        else:
+            write_params(model)
+
 
 
 def write_results(test_predictions, train_predictions, result_dir):
