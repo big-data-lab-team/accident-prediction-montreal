@@ -131,7 +131,7 @@ def compute_precision_recall_graph_slow(predictions, n_points):
     return graph
 
 
-def compute_threshold_dependent_metrics(predictions, n_points):
+def compute_threshold_dependent_metrics(spark, predictions, n_points):
     inf_cumulative_window = \
         (Window
          .partitionBy('label')
@@ -151,6 +151,8 @@ def compute_threshold_dependent_metrics(predictions, n_points):
 
     prob_positive = udf(prob_positive, DoubleType())
     count_examples = predictions.count()
+    id_buckets = spark.createDataFrame(zip(range(n_points),), ['id_bucket'])
+    label = spark.createDataFrame([(0,), (1,)], ['label'])
 
     return \
         (predictions
@@ -158,6 +160,8 @@ def compute_threshold_dependent_metrics(predictions, n_points):
                  floor(prob_positive('probability') * n_points)
                  .alias('id_bucket'))
          .groupBy('label', 'id_bucket').count()
+         .join(id_buckets.crossJoin(label), ['id_bucket', 'label'], 'outer')
+         .na.fill(0)
          .withColumn('count_negatives',
                      sum('count').over(inf_cumulative_window))
          .withColumn('count_positives',
