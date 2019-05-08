@@ -17,6 +17,7 @@ def create_result_dir(algorithm):
 def write_params(model, n_neg_samples, result_dir):
     with open(result_dir + '/params', 'w') as file:
         file.write(f'count_negative_samples: {n_neg_samples}\n')
+
         def write_params(model):
             params = model.extractParamMap()
             for k in params:
@@ -26,7 +27,6 @@ def write_params(model, n_neg_samples, result_dir):
                 write_params(stage)
         else:
             write_params(model)
-
 
 
 def write_results(test_predictions, train_predictions, result_dir):
@@ -43,4 +43,3 @@ def write_results(test_predictions, train_predictions, result_dir):
 
     metrics = compute_threshold_dependent_metrics(spark, test_predictions, 20)
     metrics.set_index('Threshold').to_csv(result_dir + '/metrics.csv')
-

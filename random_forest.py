@@ -7,7 +7,7 @@ from pyspark.ml.tuning import TrainValidationSplit, \
 from pyspark.ml import Pipeline
 from pyspark.sql import Window
 from pyspark.sql.types import DoubleType
-from pyspark.sql.functions import udf, col, floor, sum
+from pyspark.sql.functions import udf, col, floor, sum, when
 import pandas as pd
 import numpy as np
 from preprocess import features_col
@@ -151,7 +151,8 @@ def compute_threshold_dependent_metrics(spark, predictions, n_points):
 
     prob_positive = udf(prob_positive, DoubleType())
     count_examples = predictions.count()
-    id_buckets = spark.createDataFrame(zip(range(n_points),), ['id_bucket'])
+    id_buckets = spark.createDataFrame(zip(range(-1, n_points),),
+                                       ['id_bucket'])
     label = spark.createDataFrame([(0,), (1,)], ['label'])
 
     return \
@@ -173,12 +174,15 @@ def compute_threshold_dependent_metrics(spark, predictions, n_points):
                  col('0_sum(count_positives)').alias('false_positive'),
                  col('1_sum(count_negatives)').alias('false_negative'),
                  col('1_sum(count_positives)').alias('true_positive'))
+         .na.fill(0)
          .withColumn('Precision',
                      col('true_positive')
                      / (col('true_positive') + col('false_positive')))
          .withColumn('Recall',
-                     col('true_positive')
-                     / (col('true_positive') + col('false_negative')))
+                     when(col('true_positive') != 0,
+                          col('true_positive')
+                          / (col('true_positive') + col('false_negative')))
+                     .otherwise(0.0))
          .withColumn('False positive rate',
                      col('false_positive')
                      / (col('false_positive') + col('true_negative')))
