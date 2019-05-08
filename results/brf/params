@@ -1,0 +1,22 @@
+count_negative_samples: 2315876
+labelCol: label
+weightCol: weight
+classWeight: [0.05807262565007798, 1.0]
+cacheNodeIds: True
+checkpointInterval: 10
+featureSubsetStrategy: 13
+featuresCol: features
+impurity: entropy
+labelCol: label
+maxBins: 32
+maxDepth: 25
+maxMemoryInMB: 256
+minInfoGain: 0.0
+minInstancesPerNode: 10
+numTrees: 100
+predictionCol: prediction
+probabilityCol: probability
+rawPredictionCol: rawPrediction
+seed: -5387697053847413545
+subsamplingRate: 1.0
+weightCol: weight

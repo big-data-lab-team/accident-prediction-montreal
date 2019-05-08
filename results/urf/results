@@ -1,0 +1,6 @@
+Test set:
+	Area Under PR = 0.5346811764286181
+	Area Under ROC = 0.9184229182265323
+Train set:
+	Area Under PR = 0.8133317002992604
+	Area Under ROC = 0.96957740730822
