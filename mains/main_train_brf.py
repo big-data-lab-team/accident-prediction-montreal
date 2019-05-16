@@ -3,7 +3,8 @@ from preprocess import get_negative_samples, get_positive_samples
 from utils import init_spark
 from preprocess import get_dataset_df
 from pyspark.ml.classification import RandomForestClassifier
-from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit, CrossValidator
+from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit, \
+                              CrossValidator
 from pyspark.ml import Pipeline
 from class_weighter import ClassWeighter
 from random_forest import get_feature_importances
@@ -42,5 +43,3 @@ write_results(predictions, train_predictions, result_dir)
 # Write feature importances
 feature_importances = get_feature_importances(model.stages[1])
 feature_importances.to_csv(result_dir + '/feature_importances.csv')
-
-

@@ -3,7 +3,8 @@ from preprocess import get_negative_samples, get_positive_samples
 from utils import init_spark
 from preprocess import get_dataset_df
 from pyspark.ml.classification import RandomForestClassifier
-from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit, CrossValidator
+from pyspark.ml.tuning import ParamGridBuilder, TrainValidationSplit, \
+                              CrossValidator
 from pyspark.ml import Pipeline
 from random_undersampler import RandomUnderSampler
 from random_forest import get_feature_importances
@@ -20,15 +21,15 @@ train_set, test_set = get_dataset_df(spark, pos_samples, neg_samples)
 train_set, test_set = train_set.persist(), test_set.persist()
 
 rf = RandomForestClassifier(labelCol="label",
-                             featuresCol="features",
-                             cacheNodeIds=True,
-                             maxDepth=17,
-                             impurity='entropy',
-                             featureSubsetStrategy='sqrt',
-                             minInstancesPerNode=10,
-                             numTrees=100,
-                             subsamplingRate=1.0,
-                             maxMemoryInMB=768)
+                            featuresCol="features",
+                            cacheNodeIds=True,
+                            maxDepth=17,
+                            impurity='entropy',
+                            featureSubsetStrategy='sqrt',
+                            minInstancesPerNode=10,
+                            numTrees=100,
+                            subsamplingRate=1.0,
+                            maxMemoryInMB=768)
 ru = (RandomUnderSampler()
       .setIndexCol('sample_id')
       .setTargetImbalanceRatio(1.0))
