@@ -6,12 +6,12 @@ These datasets have been fused to generate examples corresponding to an hour per
 A binary classification has been performed with positive examples, corresponding to the occurrence of a collision, and negative examples, corresponding to the non-occurrence of a collision.
 Four models are built and compared, a first basic model using only the count of accident during previous years on the road segment, a model built using random forest with under-sampling of the majority class, a model using balanced random forest and a model using XGBoost. 
 The model with the best performances is the balanced random forest model.
-It identifies as positives the 13% most dangerous examples which corresponds to 85% of vehicle collisions.
+It identifies as positives the 13% most dangerous examples which correspond to 85% of vehicle collisions.
 
 For more information read [the corresponding scientific paper](https://github.com/hantoine/accident-prediction-montreal-paper/ "Paper repository").
 
 ## Folder Structure
-- mains: contains the scripts for the generation of the dataset, the hyper parameter tuning, the training and the evaluation of the models
+- mains: contains the scripts for the generation of the dataset, the hyperparameter tuning, the training and the evaluation of the models
 - notebooks: Jupyter notebooks used during development for interactive exploration of the data and experimentations
 - results: results of the four models
 
