@@ -4,8 +4,8 @@ This repository contains the source code developed for a study of road vehicle c
 Three datasets provided by the city of Montreal and the Government of Canada were used: a dataset containing road vehicle collisions, a dataset describing the Canadian road network, and a dataset containing historical weather information.
 These datasets have been fused to generate examples corresponding to an hour period and a road segment delimited by intersections.
 A binary classification has been performed with positive examples, corresponding to the occurrence of a collision, and negative examples, corresponding to the non-occurrence of a collision.
-Four models are built and compared, a first basic model using only the count of accident during previous years on the road segment, a model built using random forest with under-sampling of the majority class, a model using balanced random forest and a model using XGBoost. 
-The model with the best performances is the balanced random forest model.
+Four models have been built and compared, a first basic model using only the count of accident during previous years on the road segment, a model built using random forest with under-sampling of the majority class, a model using balanced random forest and a model using XGBoost. 
+The best performances were obtained by the balanced random forest model.
 It identifies as positives the 13% most dangerous examples which correspond to 85% of vehicle collisions.
 
 For more information read [the corresponding scientific paper](https://github.com/hantoine/accident-prediction-montreal-paper/ "Paper repository").
