@@ -8,7 +8,7 @@ Four models have been built and compared, a first basic model using only the cou
 The best performances were obtained by the balanced random forest model.
 It identifies as positives the 13% most dangerous examples which correspond to 85% of vehicle collisions.
 
-For more information read [the corresponding scientific paper](https://github.com/hantoine/accident-prediction-montreal-paper/ "Paper repository").
+For more information read [the corresponding scientific paper](https://arxiv.org/abs/1905.08770 "Paper on ArXiv").
 
 ## Folder Structure
 - mains: contains the scripts for the generation of the dataset, the hyperparameter tuning, the training and the evaluation of the models
