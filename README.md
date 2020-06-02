@@ -1,4 +1,4 @@
-# High-Resolution Road Vehicle Collision Predictionfor the City of Montreal
+# High-Resolution Road Vehicle Collision Prediction for the City of Montreal
 
 This repository contains the source code developed for a study of road vehicle collisions in the city of Montreal.
 Three datasets provided by the city of Montreal and the Government of Canada were used: a dataset containing road vehicle collisions, a dataset describing the Canadian road network, and a dataset containing historical weather information.
