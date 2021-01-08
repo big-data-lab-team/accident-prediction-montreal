@@ -5,10 +5,12 @@ from pyspark.sql.functions import col, when, lit
 
 
 class HasClassWeight(Params):
-    classWeight = Param(Params._dummy(),
-                        "classWeight",
-                        "Array containing the weight to give to each class",
-                        typeConverter=TypeConverters.toListFloat)
+    classWeight = Param(
+        Params._dummy(),
+        "classWeight",
+        "Array containing the weight to give to each class",
+        typeConverter=TypeConverters.toListFloat,
+    )
 
     def __init__(self):
         super(HasClassWeight, self).__init__()
@@ -29,11 +31,13 @@ class HasClassWeight(Params):
 class ClassWeighter(Transformer, HasWeightCol, HasLabelCol, HasClassWeight):
     def __init__(self):
         super(ClassWeighter, self).__init__()
-        self._setDefault(weightCol='weight')
+        self._setDefault(weightCol="weight")
 
     def _transform(self, dataset):
         class_weight = self.getClassWeight()
-        return dataset.withColumn(self.getWeightCol(),
-                                  when(col(self.getLabelCol()) == 0.0,
-                                       lit(class_weight[0]))
-                                  .otherwise(lit(class_weight[1])))
+        return dataset.withColumn(
+            self.getWeightCol(),
+            when(col(self.getLabelCol()) == 0.0, lit(class_weight[0])).otherwise(
+                lit(class_weight[1])
+            ),
+        )

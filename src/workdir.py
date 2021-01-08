@@ -4,4 +4,4 @@
 import os
 
 # directory in which the data directory will be created/used
-workdir = os.getcwd() + '/'
+workdir = os.getcwd() + "/"
