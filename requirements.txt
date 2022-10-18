@@ -14,7 +14,7 @@ more-itertools==6.0.0
 numpy==1.16.2
 pandas==0.24.1
 pluggy==0.9.0
-py==1.8.0
+py==1.10.0
 py4j==0.10.7
 pyparsing==2.3.1
 pyspark==2.4.0
